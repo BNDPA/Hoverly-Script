@@ -10,7 +10,7 @@ local PlaceId = game.PlaceId
 
 -- НАСТРОЙКИ КЛЮЧЕЙ И ССЫЛОК
 local CorrectKey = "HoverHub" -- Твой ключ
-local KeyLink = "https://your-link-here.com" -- Ссылка на получение ключа
+local KeyLink = "https://lootdest.org/s?4i9ddpi0" -- Ссылка на получение ключа
 
 -- ССЫЛКИ НА СКРИПТЫ ДЛЯ КАЖДОЙ ИГРЫ (замени на свои сырые ссылки GitHub / Pastebin)
 local GameScripts = {
