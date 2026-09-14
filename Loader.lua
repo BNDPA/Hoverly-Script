@@ -23,7 +23,7 @@ local GameScripts = {
 
 -- Дополнительные альтернативные ID (на случай если у игры несколько плейсов/лобби)
 local GameAlternativeIDs = {
-    [6516141723] = true, -- DOORS
+    [56823842] = true, -- DOORS
     [6839171747] = true, -- DOORS Floor 2 / Rooms (если понадобится)
     [537413528]  = true, -- BABFT
     [142823291]  = true, -- MM2
