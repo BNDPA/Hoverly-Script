@@ -14,24 +14,29 @@ local KeyLink = "https://lootdest.org/s?4i9ddpi0" -- Ссылка на полу�
 
 -- ССЫЛКИ НА СКРИПТЫ ДЛЯ КАЖДОЙ ИГРЫ (замени ссылки на свои сырые GitHub / Pastebin)
 local GameScripts = {
-    [537413528] = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/babft.lua", -- Build A Boat For Treasure PlaceId
-    [66653943]  = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/mm2.lua",      -- Murder Mystery 2 PlaceId
-    [13822889]  = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/lt2.lua",      -- Lumber Tycoon 2 PlaceId
-    [189707]    = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/nds.lua",      -- Natural Disaster Survival PlaceId
+    [6516141723] = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/doors.lua",  -- DOORS PlaceId
+    [537413528]  = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/babft.lua",  -- Build A Boat For Treasure PlaceId
+    [66653943]   = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/mm2.lua",    -- Murder Mystery 2 PlaceId
+    [13822889]   = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/lt2.lua",    -- Lumber Tycoon 2 PlaceId
+    [189707]     = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/nds.lua",    -- Natural Disaster Survival PlaceId
 }
 
--- Дополнительные альтернативные ID (на случай если у игры несколько плейсов)
+-- Дополнительные альтернативные ID (на случай если у игры несколько плейсов/лобби)
 local GameAlternativeIDs = {
-    [537413528] = true, -- BABFT
-    [142823291] = true, -- MM2
-    [66653943]  = true, -- MM2
+    [6516141723] = true, -- DOORS
+    [6839171747] = true, -- DOORS Floor 2 / Rooms (если понадобится)
+    [537413528]  = true, -- BABFT
+    [142823291]  = true, -- MM2
+    [66653943]   = true, -- MM2
 }
 
 local function getGameType()
     -- Проверяем по ID или названию игры через MarketplaceService
-    if PlaceId == 537413528 or MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("build a boat") then
+    if GameAlternativeIDs[PlaceId] or MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("doors") then
+        return "DOORS", GameScripts[6516141723]
+    elseif PlaceId == 537413528 or MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("build a boat") then
         return "Build A Boat For Treasure", GameScripts[537413528]
-    elseif GameAlternativeIDs[PlaceId] or MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("murder mystery 2") then
+    elseif MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("murder mystery 2") then
         return "Murder Mystery 2", GameScripts[66653943]
     elseif PlaceId == 13822889 or MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("lumber tycoon 2") then
         return "Lumber Tycoon 2", GameScripts[13822889]
@@ -92,7 +97,7 @@ KeyTab:Button({
             end)
             
             if not success then
-                warn("Failed to load script: " .. tostring(err))
+                warn("Failed to load script: " + tostring(err))
                 WindUI:Notify({
                     Title = "Load Error",
                     Content = "Could not fetch the script from URL.",
