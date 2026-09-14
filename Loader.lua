@@ -23,48 +23,6 @@ if not successUI or not WindUI then
     return
 end
 
--- Функция загрузки игры
-local function loadGameScript()
-    local scriptFile = SupportedGames[PlaceId]
-    
-    if scriptFile then
-        WindUI:Notify({
-            Title = "Hoverly Hub",
-            Content = "Игра найдена! Загружаем скрипт...",
-            Duration = 3
-        })
-        
-        task.wait(0.5)
-        local fullUrl = BASE_URL .. scriptFile
-        
-        local successFetch, content = pcall(function()
-            return game:HttpGet(fullUrl)
-        end)
-        
-        if successFetch and content and content ~= "404: Not Found" then
-            local runSuccess, runErr = pcall(function()
-                loadstring(content)()
-            end)
-            if not runSuccess then
-                warn("[Hoverly Hub Error]: Ошибка выполнения скрипта игры: " .. tostring(runErr))
-            end
-        else
-            warn("[Hoverly Hub Error]: Не удалось скачать файл по ссылке: " .. fullUrl)
-            WindUI:Notify({
-                Title = "Ошибка файла",
-                Content = "Не удалось загрузить файл " .. scriptFile .. " с GitHub!",
-                Duration = 4
-            })
-        end
-    else
-        WindUI:Notify({
-            Title = "Hoverly Hub",
-            Content = "Эта игра пока не поддерживается хабом (PlaceId: " .. tostring(PlaceId) .. ")",
-            Duration = 5
-        })
-    end
-end
-
 -- Создаем окно Key System
 local KeyWindow = WindUI:CreateWindow({
     Title = "Hoverly Hub | Key System",
@@ -89,6 +47,56 @@ KeyTab:Input({
     end
 })
 
+-- Функция загрузки игры
+local function loadGameScript()
+    local scriptFile = SupportedGames[PlaceId]
+    
+    if scriptFile then
+        WindUI:Notify({
+            Title = "Hoverly Hub",
+            Content = "Игра найдена! Загружаем скрипт...",
+            Duration = 2
+        })
+        
+        task.wait(0.5)
+        local fullUrl = BASE_URL .. scriptFile
+        
+        local successFetch, content = pcall(function()
+            return game:HttpGet(fullUrl)
+        end)
+        
+        if successFetch and content and content ~= "404: Not Found" then
+            -- Уничтожаем окно ключа перед запуском основного интерфейса
+            pcall(function()
+                KeyWindow:Destroy()
+            end)
+            
+            task.wait(0.2)
+            
+            local runSuccess, runErr = pcall(function()
+                loadstring(content)()
+            end)
+            
+            if not runSuccess then
+                warn("[Hoverly Hub Error]: Ошибка выполнения скрипта игры: " + tostring(runErr))
+            end
+        else
+            warn("[Hoverly Hub Error]: Не удалось скачать файл по ссылке: " .. fullUrl)
+            WindUI:Notify({
+                Title = "Ошибка файла",
+                Content = "Не удалось загрузить файл " .. scriptFile .. " с GitHub!",
+                Duration = 4
+            })
+        end
+    else
+        WindUI:Notify({
+            Title = "Hoverly Hub",
+            Content = "Эта игра пока не поддерживается хабом (PlaceId: " .. tostring(PlaceId) .. ")",
+            Duration = 4
+        })
+    end
+end
+
 KeyTab:Button({
     Title = "Проверить ключ",
     Desc = "Нажмите для авторизации",
@@ -96,15 +104,13 @@ KeyTab:Button({
         if inputKey == "HoverHub" then
             WindUI:Notify({
                 Title = "Успешно!",
-                Content = "Ключ верный. Добро пожаловать!",
-                Duration = 2
+                Content = "Ключ верный. Загрузка...",
+                Duration = 1.5
             })
             
-            pcall(function()
-                KeyWindow:Close()
-            end)
+            task.wait(0.5)
             
-            task.wait(0.3)
+            -- Запускаем загрузку скрипта игры (оно само закроет окно ключа)
             loadGameScript()
         else
             WindUI:Notify({
@@ -115,4 +121,3 @@ KeyTab:Button({
         end
     end
 })
-
