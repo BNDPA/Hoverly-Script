@@ -9,7 +9,8 @@ local BASE_URL = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/"
 local SupportedGames = {
     [13822889] = "lt2.lua",    -- Lumber Tycoon 2
     [142823291] = "mm2.lua",   -- Murder Mystery 2
-    [189707] = "nds.lua",      -- Natural Disaster Survival
+    [189707] = "nds.lua",      -- Natural Disaster Survival (короткий ID)
+    [189707485] = "nds.lua",   -- Natural Disaster Survival (полный ID)
 }
 
 -- Безопасная загрузка WindUI
@@ -99,14 +100,11 @@ KeyTab:Button({
                 Duration = 2
             })
             
-            -- Надежное закрытие окна через встроенный метод или уничтожение UI
             pcall(function()
                 KeyWindow:Close()
             end)
             
             task.wait(0.3)
-            
-            -- Запускаем загрузку скрипта игры
             loadGameScript()
         else
             WindUI:Notify({
