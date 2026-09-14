@@ -1,54 +1,75 @@
 --[[
     Project: Hoverly Script | Multi-Game Loader & Key System
+    Repository: BNDPA/Hoverly-Script
 ]]
 
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+local success, WindUI = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+end)
+
+if not success or not WindUI then
+    warn("Failed to load Wind UI!")
+    return
+end
+
 local Players = game:GetService("Players")
 local MarketplaceService = game:GetService("MarketplaceService")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
+local PlaceIdStr = tostring(PlaceId)
 
 -- НАСТРОЙКИ КЛЮЧЕЙ И ССЫЛОК
 local CorrectKey = "HoverHub" -- Твой ключ
 local KeyLink = "https://lootdest.org/s?4i9ddpi0" -- Ссылка на получение ключа
 
--- ССЫЛКИ НА СКРИПТЫ ДЛЯ КАЖДОЙ ИГРЫ (замени ссылки на свои сырые GitHub / Pastebin)
+-- ССЫЛКИ НА СКРИПТЫ ДЛЯ КАЖДОЙ ИГРЫ (замени ссылки на свои сырые GitHub файлы / raw)
 local GameScripts = {
-    [6516141723] = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/doors.lua",  -- DOORS PlaceId
-    [537413528]  = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/babft.lua",  -- Build A Boat For Treasure PlaceId
-    [66653943]   = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/mm2.lua",    -- Murder Mystery 2 PlaceId
-    [13822889]   = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/lt2.lua",    -- Lumber Tycoon 2 PlaceId
-    [189707]     = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/nds.lua",    -- Natural Disaster Survival PlaceId
+    ["DOORS"] = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/doors.lua",  -- Ссылка на твой скрипт DOORS
+    ["BABFT"] = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/babft.lua",  -- Build A Boat For Treasure
+    ["MM2"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/mm2.lua",    -- Murder Mystery 2
+    ["LT2"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/lt2.lua",    -- Lumber Tycoon 2
+    ["NDS"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/nds.lua",    -- Natural Disaster Survival
 }
 
--- Дополнительные альтернативные ID (на случай если у игры несколько плейсов/лобби)
-local GameAlternativeIDs = {
-    [56823842] = true, -- DOORS
-    [6839171747] = true, -- DOORS Floor 2 / Rooms (если понадобится)
-    [537413528]  = true, -- BABFT
-    [142823291]  = true, -- MM2
-    [66653943]   = true, -- MM2
-}
-
+-- Функция определения игры
 local function getGameType()
-    -- Проверяем по ID или названию игры через MarketplaceService
-    if GameAlternativeIDs[PlaceId] or MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("doors") then
-        return "DOORS", GameScripts[6516141723]
-    elseif PlaceId == 537413528 or MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("build a boat") then
-        return "Build A Boat For Treasure", GameScripts[537413528]
-    elseif MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("murder mystery 2") then
-        return "Murder Mystery 2", GameScripts[66653943]
-    elseif PlaceId == 13822889 or MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("lumber tycoon 2") then
-        return "Lumber Tycoon 2", GameScripts[13822889]
-    elseif PlaceId == 189707 or MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("natural disaster") then
-        return "Natural Disaster Survival", GameScripts[189707]
+    -- Проверка на префикс 5682 для DOORS, как ты и просил
+    if PlaceIdStr:sub(1, 4) == "5682" or PlaceId == 6839171747 then
+        return "DOORS", GameScripts["DOORS"]
+    elseif PlaceId == 537413528 then
+        return "Build A Boat For Treasure", GameScripts["BABFT"]
+    elseif PlaceId == 142823291 or PlaceId == 66653943 then
+        return "Murder Mystery 2", GameScripts["MM2"]
+    elseif PlaceId == 13822889 then
+        return "Lumber Tycoon 2", GameScripts["LT2"]
+    elseif PlaceId == 189707 then
+        return "Natural Disaster Survival", GameScripts["NDS"]
+    else
+        -- Запасной вариант: проверка по названию через MarketplaceService
+        local successInfo, info = pcall(function()
+            return MarketplaceService:GetProductInfo(PlaceId)
+        end)
+        if successInfo and info and info.Name then
+            local name = info.Name:lower()
+            if name:find("doors") then
+                return "DOORS", GameScripts["DOORS"]
+            elseif name:find("build a boat") then
+                return "Build A Boat For Treasure", GameScripts["BABFT"]
+            elseif name:find("murder mystery 2") then
+                return "Murder Mystery 2", GameScripts["MM2"]
+            elseif name:find("lumber tycoon 2") then
+                return "Lumber Tycoon 2", GameScripts["LT2"]
+            elseif name:find("natural disaster") then
+                return "Natural Disaster Survival", GameScripts["NDS"]
+            end
+        end
     end
     return "Unknown", nil
 end
 
 local gameName, gameScriptUrl = getGameType()
 
--- Окно Key System
+-- Создание окна Key System (WindUI)
 local KeyWindow = WindUI:CreateWindow({
     Title = "Hoverly Script | Key System",
     Icon = "key",
@@ -91,13 +112,13 @@ KeyTab:Button({
             
             KeyWindow:Destroy()
             
-            -- Автоматическая загрузка нужного файла игры
-            local success, err = pcall(function()
+            -- Загрузка скрипта выбранной игры
+            local successLoad, err = pcall(function()
                 loadstring(game:HttpGet(gameScriptUrl))()
             end)
             
-            if not success then
-                warn("Failed to load script: " + tostring(err))
+            if not successLoad then
+                warn("Failed to load script: " .. tostring(err))
                 WindUI:Notify({
                     Title = "Load Error",
                     Content = "Could not fetch the script from URL.",
@@ -129,9 +150,8 @@ KeyTab:Button({
             WindUI:Notify({
                 Title = "Error",
                 Content = "Your executor does not support setclipboard.",
-                Duration = 3
+                Duration = 4
             })
         end
     end
 })
-
