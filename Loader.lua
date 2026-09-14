@@ -9,7 +9,7 @@ local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
 
 -- НАСТРОЙКИ КЛЮЧЕЙ И ССЫЛОК
-local CorrectKey = "HOVERLY2026" -- Твой ключ
+local CorrectKey = "HoverHub" -- Твой ключ
 local KeyLink = "https://your-link-here.com" -- Ссылка на получение ключа
 
 -- ССЫЛКИ НА СКРИПТЫ ДЛЯ КАЖДОЙ ИГРЫ (замени на свои сырые ссылки GitHub / Pastebin)
