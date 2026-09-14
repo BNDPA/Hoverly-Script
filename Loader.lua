@@ -12,26 +12,31 @@ local PlaceId = game.PlaceId
 local CorrectKey = "HoverHub" -- Твой ключ
 local KeyLink = "https://lootdest.org/s?4i9ddpi0" -- Ссылка на получение ключа
 
--- ССЫЛКИ НА СКРИПТЫ ДЛЯ КАЖДОЙ ИГРЫ (замени на свои сырые ссылки GitHub / Pastebin)
+-- ССЫЛКИ НА СКРИПТЫ ДЛЯ КАЖДОЙ ИГРЫ (замени ссылки на свои сырые GitHub / Pastebin)
 local GameScripts = {
-    [66653943] = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/mm2.lua",      -- Murder Mystery 2 PlaceId
-    [13822889] = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/lt2.lua",      -- Lumber Tycoon 2 PlaceId
-    [189707]   = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/nds.lua",      -- Natural Disaster Survival PlaceId
+    [537413528] = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/babft.lua", -- Build A Boat For Treasure PlaceId
+    [66653943]  = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/mm2.lua",      -- Murder Mystery 2 PlaceId
+    [13822889]  = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/lt2.lua",      -- Lumber Tycoon 2 PlaceId
+    [189707]    = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/nds.lua",      -- Natural Disaster Survival PlaceId
 }
 
--- Дополнительные ID для MM2 (на случай альтернативных плейс-айди)
-local MM2_IDs = {
-    [142823291] = true,
-    [66653943] = true,
+-- Дополнительные альтернативные ID (на случай если у игры несколько плейсов)
+local GameAlternativeIDs = {
+    [537413528] = true, -- BABFT
+    [142823291] = true, -- MM2
+    [66653943]  = true, -- MM2
 }
 
 local function getGameType()
-    if MM2_IDs[PlaceId] or MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("murder mystery 2") then
-        return "MM2", "https://raw.githubusercontent.com/YourUsername/YourRepo/main/mm2.lua"
+    -- Проверяем по ID или названию игры через MarketplaceService
+    if PlaceId == 537413528 or MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("build a boat") then
+        return "Build A Boat For Treasure", GameScripts[537413528]
+    elseif GameAlternativeIDs[PlaceId] or MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("murder mystery 2") then
+        return "Murder Mystery 2", GameScripts[66653943]
     elseif PlaceId == 13822889 or MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("lumber tycoon 2") then
-        return "LT2", "https://raw.githubusercontent.com/YourUsername/YourRepo/main/lt2.lua"
+        return "Lumber Tycoon 2", GameScripts[13822889]
     elseif PlaceId == 189707 or MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("natural disaster") then
-        return "NDS", "https://raw.githubusercontent.com/YourUsername/YourRepo/main/nds.lua"
+        return "Natural Disaster Survival", GameScripts[189707]
     end
     return "Unknown", nil
 end
@@ -124,3 +129,4 @@ KeyTab:Button({
         end
     end
 })
+
