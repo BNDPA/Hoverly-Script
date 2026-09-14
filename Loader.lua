@@ -1,121 +1,124 @@
 --[[
-    Project: Hoverly Script (Global Loader with Key System)
-    Author: Hoverly Development (BNDPA)
+    Project: Hoverly Script | Multi-Game Loader & Key System
 ]]
 
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
+local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
-local BASE_URL = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/"
 
-local SupportedGames = {
-    [13822889] = "lt2.lua",    -- Lumber Tycoon 2
-    [142823291] = "mm2.lua",   -- Murder Mystery 2
-    [189707] = "nds.lua",      -- Natural Disaster Survival (короткий ID)
-    [189707485] = "nds.lua",   -- Natural Disaster Survival (полный ID)
+-- НАСТРОЙКИ КЛЮЧЕЙ И ССЫЛОК
+local CorrectKey = "HOVERLY2026" -- Твой ключ
+local KeyLink = "https://your-link-here.com" -- Ссылка на получение ключа
+
+-- ССЫЛКИ НА СКРИПТЫ ДЛЯ КАЖДОЙ ИГРЫ (замени на свои сырые ссылки GitHub / Pastebin)
+local GameScripts = {
+    [66653943] = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/mm2.lua",      -- Murder Mystery 2 PlaceId
+    [13822889] = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/lt2.lua",      -- Lumber Tycoon 2 PlaceId
+    [189707]   = "https://raw.githubusercontent.com/YourUsername/YourRepo/main/nds.lua",      -- Natural Disaster Survival PlaceId
 }
 
--- Безопасная загрузка WindUI
-local successUI, WindUI = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
-end)
+-- Дополнительные ID для MM2 (на случай альтернативных плейс-айди)
+local MM2_IDs = {
+    [142823291] = true,
+    [66653943] = true,
+}
 
-if not successUI or not WindUI then
-    warn("[Hoverly Hub]: Не удалось загрузить интерфейс WindUI.")
-    return
+local function getGameType()
+    if MM2_IDs[PlaceId] or MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("murder mystery 2") then
+        return "MM2", "https://raw.githubusercontent.com/YourUsername/YourRepo/main/mm2.lua"
+    elseif PlaceId == 13822889 or MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("lumber tycoon 2") then
+        return "LT2", "https://raw.githubusercontent.com/YourUsername/YourRepo/main/lt2.lua"
+    elseif PlaceId == 189707 or MarketplaceService:GetProductInfo(PlaceId).Name:lower():find("natural disaster") then
+        return "NDS", "https://raw.githubusercontent.com/YourUsername/YourRepo/main/nds.lua"
+    end
+    return "Unknown", nil
 end
 
--- Создаем окно Key System
+local gameName, gameScriptUrl = getGameType()
+
+-- Окно Key System
 local KeyWindow = WindUI:CreateWindow({
-    Title = "Hoverly Hub | Key System",
+    Title = "Hoverly Script | Key System",
     Icon = "key",
     Author = "Hoverly Development",
-    Folder = "HoverlyKeyConfig",
     Theme = "Dark",
-    Size = UDim2.new(0, 420, 0, 240),
-    Transparent = false,
-    HasOutline = true,
+    Resizable = false,
 })
 
 local KeyTab = KeyWindow:Tab({ Title = "Authentication", Icon = "lock" })
-local inputKey = ""
+local inputtedKey = ""
 
 KeyTab:Input({
-    Title = "Введите ключ",
-    Desc = "Пароль для доступа к хабу: HoverHub",
-    Placeholder = "Введите ключ здесь...",
-    Callback = function(value)
-        inputKey = value
+    Title = "Enter Key",
+    Description = "Detected Game: " .. gameName,
+    Placeholder = "Type key...",
+    Callback = function(text)
+        inputtedKey = text
     end
 })
 
--- Функция загрузки игры
-local function loadGameScript()
-    local scriptFile = SupportedGames[PlaceId]
-    
-    if scriptFile then
-        WindUI:Notify({
-            Title = "Hoverly Hub",
-            Content = "Игра найдена! Загружаем скрипт...",
-            Duration = 2
-        })
-        
-        task.wait(0.5)
-        local fullUrl = BASE_URL .. scriptFile
-        
-        local successFetch, content = pcall(function()
-            return game:HttpGet(fullUrl)
-        end)
-        
-        if successFetch and content and content ~= "404: Not Found" then
-            -- Уничтожаем окно ключа перед запуском основного интерфейса
-            pcall(function()
-                KeyWindow:Destroy()
+KeyTab:Button({
+    Title = "Check Key & Load",
+    Description = "Verifies your key and loads the game script.",
+    Callback = function()
+        if inputtedKey == CorrectKey then
+            if not gameScriptUrl then
+                WindUI:Notify({
+                    Title = "Error",
+                    Content = "This game is not supported by Hoverly Script!",
+                    Duration = 4
+                })
+                return
+            end
+
+            WindUI:Notify({
+                Title = "Success!",
+                Content = "Key accepted. Loading " .. gameName .. " script...",
+                Duration = 3
+            })
+            
+            KeyWindow:Destroy()
+            
+            -- Автоматическая загрузка нужного файла игры
+            local success, err = pcall(function()
+                loadstring(game:HttpGet(gameScriptUrl))()
             end)
             
-            task.wait(0.2)
-            
-            local runSuccess, runErr = pcall(function()
-                loadstring(content)()
-            end)
-            
-            if not runSuccess then
-                warn("[Hoverly Hub Error]: Ошибка выполнения скрипта игры: " + tostring(runErr))
+            if not success then
+                warn("Failed to load script: " .. tostring(err))
+                WindUI:Notify({
+                    Title = "Load Error",
+                    Content = "Could not fetch the script from URL.",
+                    Duration = 4
+                })
             end
         else
-            warn("[Hoverly Hub Error]: Не удалось скачать файл по ссылке: " .. fullUrl)
             WindUI:Notify({
-                Title = "Ошибка файла",
-                Content = "Не удалось загрузить файл " .. scriptFile .. " с GitHub!",
-                Duration = 4
+                Title = "Access Denied",
+                Content = "Invalid key! Please try again.",
+                Duration = 3
             })
         end
-    else
-        WindUI:Notify({
-            Title = "Hoverly Hub",
-            Content = "Эта игра пока не поддерживается хабом (PlaceId: " .. tostring(PlaceId) .. ")",
-            Duration = 4
-        })
     end
-end
+})
 
 KeyTab:Button({
-    Title = "Проверить ключ",
-    Desc = "Нажмите для авторизации",
+    Title = "Get Key",
+    Description = "Copies the link to get a key to your clipboard.",
     Callback = function()
-        if inputKey == "HoverHub" then
+        if setclipboard then
+            setclipboard(KeyLink)
             WindUI:Notify({
-                Title = "Успешно!",
-                Content = "Ключ верный. Загрузка...",
-                Duration = 1.5
+                Title = "Link Copied",
+                Content = "Key link copied to clipboard!",
+                Duration = 3
             })
-            
-            task.wait(0.5)
-            
-            -- Запускаем загрузку скрипта игры (оно само закроет окно ключа)
-            loadGameScript()
         else
             WindUI:Notify({
-                Title = "Ошибка",
-                Content = "Неверный ключ! Попробуйте снова.",
+                Title = "Error",
+                Content = "Your executor does not support setclipboard.",
                 Duration = 3
             })
         end
