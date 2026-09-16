@@ -50,10 +50,10 @@ end
 
 -- Создание окна через WindUI
 local Window = WindUI:CreateWindow({
-    Title = "Hoverly Hub | Loader",
+    Title = "Hoverly Hub",
     Icon = "compass",
     Author = "BNDPA",
-    Folder = "HoverlyLoader",
+    Folder = "HoverlyHub",
     Size = UDim2.fromOffset(520, 360),
     Transparent = true,
     Theme = "Dark",
@@ -84,19 +84,20 @@ if detectedGame then
             WindUI:Notify({
                 Title = "Загрузка...",
                 Content = "Запуск модуля: " .. detectedGame.Name,
-                Duration = 3,
+                Duration = 2,
             })
+            
+            -- Уничтожаем (выключаем) окно хаба перед выполнением скрипта игры
+            pcall(function()
+                Window:Destroy()
+            end)
             
             local success, err = pcall(function()
                 loadstring(game:HttpGet(detectedGame.ScriptUrl))()
             end)
             
             if not success then
-                WindUI:Notify({
-                    Title = "Ошибка",
-                    Content = "Не удалось выполнить скрипт: " .. tostring(err),
-                    Duration = 5,
-                })
+                warn("Не удалось выполнить скрипт: " .. tostring(err))
             end
         end
     })
@@ -121,19 +122,20 @@ for _, gameData in ipairs(Games) do
             WindUI:Notify({
                 Title = "Загрузка...",
                 Content = "Загружается скрипт для " .. gameData.Name,
-                Duration = 3,
+                Duration = 2,
             })
             
-            local success, err = pcall(function`())
+            -- Уничтожаем (выключаем) окно хаба перед выполнением скрипта игры
+            pcall(function()
+                Window:Destroy()
+            end)
+            
+            local success, err = pcall(function()
                 loadstring(game:HttpGet(gameData.ScriptUrl))()
             end)
             
             if not success then
-                WindUI:Notify({
-                    Title = "Ошибка",
-                    Content = "Не удалось выполнить скрипт: " .. tostring(err),
-                    Duration = 5,
-                })
+                warn("Не удалось выполнить скрипт: " .. tostring(err))
             end
         end
     })
