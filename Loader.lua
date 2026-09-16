@@ -29,6 +29,8 @@ local GameScripts = {
     ["MM2"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/mm2.lua",    -- Murder Mystery 2
     ["LT2"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/lt2.lua",    -- Lumber Tycoon 2
     ["NDS"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/nds.lua",    -- Natural Disaster Survival
+    ["BF"]    = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/bf.lua", -- Blox Fruit
+
 }
 
 -- Функция определения игры
@@ -41,6 +43,8 @@ local function getGameType()
     elseif PlaceId == 142823291 or PlaceId == 66653943 then
         return "Murder Mystery 2", GameScripts["MM2"]
     elseif PlaceId == 13822889 then
+        return "Blox Fruits", GameScripts["BF"]
+    elseif PlaceId == 2753915549 then
         return "Lumber Tycoon 2", GameScripts["LT2"]
     elseif PlaceId == 189707 then
         return "Natural Disaster Survival", GameScripts["NDS"]
