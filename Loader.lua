@@ -10,14 +10,14 @@ local Window = WindUI:CreateWindow({
     Icon = "rbxassetid://10734950309",
     Author = "Key System",
     Folder = "HoverlyHubKey",
-    Size = UDim2.fromOffset(400, 220),
+    Size = UDim2.fromOffset(480, 280),
     Transparent = true,
     Theme = "Dark",
-    SideBarWidth = 0,
+    SideBarWidth = 140, -- Возвращаем ширину, чтобы вкладка была видна
     HasOutline = true,
 })
 
--- Создаем единственную вкладку Key Check
+-- Создаем вкладку Key Check
 local Tab = Window:Tab({
     Title = "Key Check",
     Icon = "key",
