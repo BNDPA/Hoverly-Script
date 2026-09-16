@@ -28,12 +28,12 @@ local FarmTab = Window:Tab({
 -- Переменные состояний
 local autoChestEnabled = false
 local noClipEnabled = false
-local flightSpeed = 250 -- Скорость полёта
+local flightSpeed = 280 -- Скорость полёта к сундукам
 local currentTween = nil
 local collectedChests = {}
 
--- Функция поиска следующего доступного сундука
-local function getNextChest()
+-- Функция поиска ближайшего сундука
+local function getNearestChest()
     local character = LocalPlayer.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
     
@@ -81,7 +81,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- Основной цикл плавного полёта без просадок вниз
+-- Основной цикл фарма с фиксацией на позиции сундука
 task.spawn(function()
     while task.wait(0.1) do
         pcall(function()
@@ -92,16 +92,16 @@ task.spawn(function()
                 local rootPart = character.HumanoidRootPart
                 local humanoid = character.Humanoid
                 
-                -- Жестко держим персонажа в невесомости, чтобы гравитация не тянула вниз
+                -- Включаем невесомость и гасим физику
                 humanoid.PlatformStand = true
                 rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                 
-                local chest = getNextChest()
+                local chest = getNearestChest()
                 if chest then
                     collectedChests[chest] = true
                     
-                    -- Целевая точка всегда чуть выше сундука (на фиксированной высоте)
-                    local targetPos = chest.Position + Vector3.new(0, 6, 0)
+                    -- Точка назначения (чуть выше сундука)
+                    local targetPos = chest.Position + Vector3.new(0, 3, 0)
                     
                     local distance = (rootPart.Position - targetPos).Magnitude
                     local travelTime = distance / flightSpeed
@@ -111,18 +111,30 @@ task.spawn(function()
                         currentTween:Cancel()
                     end
                     
+                    -- Полет к сундуку
                     local tweenInfo = TweenInfo.new(travelTime, Enum.EasingStyle.Linear)
                     currentTween = TweenService:Create(rootPart, tweenInfo, {CFrame = CFrame.new(targetPos)})
                     currentTween:Play()
                     
-                    local elapsed = 0
-                    while elapsed < travelTime and autoChestEnabled do
+                    -- Ожидание окончания полета
+                    task.wait(travelTime)
+                    
+                    -- ФИКСАЦИЯ: жестко удерживаем позицию на месте сундука, чтобы персонаж не проваливался
+                    local holdTime = 0.25 -- Время фиксации в секундах
+                    local holdElapsed = 0
+                    while holdElapsed < holdTime and autoChestEnabled do
+                        rootPart.CFrame = CFrame.new(targetPos)
+                        rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                         task.wait(0.05)
-                        elapsed = elapsed + 0.05
-                        if not chest or not chest.Parent then
-                            break
-                        end
+                        holdElapsed = holdElapsed + 0.05
                     end
+                else
+                    -- Если сундуков нет, просто висим на месте
+                    if currentTween then
+                        currentTween:Cancel()
+                        currentTween = nil
+                    end
+                    rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                 end
             else
                 if currentTween then
@@ -140,8 +152,8 @@ end)
 
 -- Элементы интерфейса
 FarmTab:Toggle({
-    Title = "Auto Chest (Stable Height)",
-    Desc = "Полёт к сундукам на стабильной высоте без просадок вниз",
+    Title = "Auto Chest (Fixed Position)",
+    Desc = "Сбор сундуков с фиксацией на точке, без просадок вниз",
     Default = false,
     Callback = function(state)
         autoChestEnabled = state
@@ -160,7 +172,7 @@ FarmTab:Toggle({
 
 FarmTab:Toggle({
     Title = "NoClip (Сквозь стены)",
-    Desc = "Отдельное включение хождения сквозь стены",
+    Desc = "Хождение сквозь стены во время сбора",
     Default = false,
     Callback = function(state)
         noClipEnabled = state
@@ -170,7 +182,6 @@ FarmTab:Toggle({
 -- Уведомление
 WindUI:Notify({
     Title = "Hoverly Script",
-    Content = "Фикс высоты полёта применен!",
+    Content = "Фикс проваливания применен!",
     Duration = 3,
 })
-
