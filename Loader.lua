@@ -1,84 +1,67 @@
--- Загрузка библиотеки WindUI
+-- Загрузка WindUI
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
--- Переменная с правильным ключом
 local CORRECT_KEY = "HoverHub"
+local InputKey = ""
 
--- Создание главного окна для авторизации (Key System)
+-- Создание окна
 local Window = WindUI:CreateWindow({
-    Title = "Hoverly Hub | Key System",
-    Icon = "rbxassetid://10734950309", -- Иконка
-    Author = "Security System",
-    Folder = "HoverlyHub",
-    Size = UDim2.fromOffset(450, 260),
+    Title = "Hoverly Hub",
+    Icon = "rbxassetid://10734950309",
+    Author = "Key System",
+    Folder = "HoverlyHubKey",
+    Size = UDim2.fromOffset(400, 220),
     Transparent = true,
     Theme = "Dark",
     SideBarWidth = 0,
     HasOutline = true,
 })
 
--- Создаем вкладку для ввода ключа
+-- Создаем единственную вкладку Key Check
 local Tab = Window:Tab({
-    Title = "Key Authorization",
+    Title = "Key Check",
     Icon = "key",
 })
-
--- Переменная для хранения введенного текста
-local InputKey = ""
 
 -- Поле ввода ключа
 Tab:Input({
     Title = "Введите ключ",
-    Placeholder = "Введите ключ здесь...",
+    Placeholder = "Введите ключ...",
     Callback = function(Value)
         InputKey = Value
     end
 })
 
--- Кнопка проверки ключа
+-- Кнопка проверки
 Tab:Button({
     Title = "Проверить ключ",
     Callback = function()
         if InputKey == CORRECT_KEY then
             WindUI:Notify({
                 Title = "Успешно!",
-                Content = "Ключ верный. Загрузка Hoverly Hub...",
+                Content = "Ключ верный. Загрузка хаба...",
                 Duration = 3,
             })
             
-            -- Закрываем окно авторизации
+            -- Закрываем окно проверки
             Window:Close()
             
-            -- Загружаем основной скрипт хаба через loadstring
+            -- Загружаем ваш основной хаб
             task.spawn(function()
                 local success, err = pcall(function()
                     loadstring(game:HttpGet("https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/Hub.lua"))()
                 end)
                 
                 if not success then
-                    warn("Ошибка при загрузке Hoverly Hub: " .. tostring(err))
+                    warn("Ошибка при загрузке хаба: " .. tostring(err))
                 end
             end)
-            
         else
             WindUI:Notify({
-                Title = "Ошибка!",
-                Content = "Неверный ключ. Попробуйте еще раз.",
+                Title = "Ошибка",
+                Content = "Неверный ключ! Попробуйте еще раз.",
                 Duration = 3,
             })
         end
-    end
-})
-
--- Кнопка для получения / копирования ключа
-Tab:Button({
-    Title = "Скопировать ключ",
-    Callback = function()
-        setclipboard("HoverHub") -- Копирует ключ в буфер обмена
-        WindUI:Notify({
-            Title = "Буфер обмена",
-            Content = "Ключ скопирован: HoverHub",
-            Duration = 3,
-        })
     end
 })
