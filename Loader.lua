@@ -4,7 +4,7 @@
 ]]
 
 local success, WindUI = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 end)
 
 if not success or not WindUI then
@@ -34,8 +34,8 @@ local GameScripts = {
 
 -- Функция определения игры
 local function getGameType()
-    -- 1. Проверка для Blox Fruits (ВСЕ моря, начинающиеся с 2753, теперь ловятся первыми)
-    if PlaceIdStr:sub(1, 4) == "27539" then
+    -- 1. Проверка для Blox Fruits (все места, начинающиеся с 2753: 1, 2, 3 моря)
+    if PlaceIdStr:sub(1, 4) == "2753" then
         return "Blox Fruits", GameScripts["BF"]
         
     -- 2. Проверка для DOORS (префикс 5682)
@@ -125,7 +125,7 @@ KeyTab:Button({
             end)
             
             if not successLoad then
-                warn("Failed to load script: " .. tostring(err))
+                warn("Failed to load script: " + tostring(err))
                 WindUI:Notify({
                     Title = "Load Error",
                     Content = "Could not fetch the script from URL.",
@@ -162,66 +162,4 @@ KeyTab:Button({
         end
     end
 })
-    Description = "Verifies your key and loads the game script.",
-    Callback = function()
-        if inputtedKey == CorrectKey then
-            if not gameScriptUrl then
-                WindUI:Notify({
-                    Title = "Error",
-                    Content = "This game is not supported by Hoverly Script!",
-                    Duration = 4
-                })
-                return
-            end
 
-            WindUI:Notify({
-                Title = "Success!",
-                Content = "Key accepted. Loading " .. gameName .. " script...",
-                Duration = 3
-            })
-            
-            KeyWindow:Destroy()
-            
-            -- Загрузка скрипта выбранной игры
-            local successLoad, err = pcall(function()
-                loadstring(game:HttpGet(gameScriptUrl))()
-            end)
-            
-            if not successLoad then
-                warn("Failed to load script: " .. tostring(err))
-                WindUI:Notify({
-                    Title = "Load Error",
-                    Content = "Could not fetch the script from URL.",
-                    Duration = 4
-                })
-            end
-        else
-            WindUI:Notify({
-                Title = "Access Denied",
-                Content = "Invalid key! Please try again.",
-                Duration = 3
-            })
-        end
-    end
-})
-
-KeyTab:Button({
-    Title = "Get Key",
-    Description = "Copies the link to get a key to your clipboard.",
-    Callback = function()
-        if setclipboard then
-            setclipboard(KeyLink)
-            WindUI:Notify({
-                Title = "Link Copied",
-                Content = "Key link copied to clipboard!",
-                Duration = 3
-            })
-        else
-            WindUI:Notify({
-                Title = "Error",
-                Content = "Your executor does not support setclipboard.",
-                Duration = 4
-            })
-        end
-    end
-})
