@@ -1,6 +1,6 @@
 --[[
-    Project: Hoverly Script | DOORS
-    Features: NoClip, Auto Interact, ESP (Fixed Doors, Keys/Levers, Entities, Players), Entity Notifier, Fullbright
+    Project: Hoverly Script | DOORS (Fixed & Updated)
+    Features: NoClip, 2x CFrame Speed Boost, Smart Auto Interact (No Paintings), ESP (Clean Doors, Room 50 Books, Precise Keys), Entity Notifier, Fullbright
 ]]
 
 local success, WindUI = pcall(function()
@@ -35,16 +35,43 @@ local WorldTab = Window:Tab({ Title = "World", Icon = "globe" })
 
 -- Состояния
 local noclipEnabled = false
+local speed2xEnabled = false
 local autoInteractEnabled = false
+local autoKeyEnabled = false
 local espItemsEnabled = false
 local espPlayersEnabled = false
 local espEntitiesEnabled = false
 local entityNotifierEnabled = false
 
--- Папки для ESP
+-- Папка для ESP
 local espFolder = Instance.new("Folder")
 espFolder.Name = "HoverlyDOORS_ESP"
 espFolder.Parent = Workspace
+
+-- Функция для создания текстовых подписей (BillboardGui)
+local function createBillboard(target, text, color)
+    if not target then return end
+    local existing = target:FindFirstChild("HoverlyTag")
+    if existing then existing:Destroy() end
+
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "HoverlyTag"
+    bb.Size = UDim2.new(0, 100, 0, 40)
+    bb.StudsOffset = Vector3.new(0, 2.5, 0)
+    bb.AlwaysOnTop = true
+    bb.Adornee = target
+    bb.Parent = target
+
+    local txt = Instance.new("TextLabel")
+    txt.Size = UDim2.new(1, 0, 1, 0)
+    txt.BackgroundTransparency = 1
+    txt.Text = text
+    txt.TextColor3 = color
+    txt.TextStrokeTransparency = 0.2
+    txt.TextSize = 14
+    txt.Font = Enum.Font.GothamBold
+    txt.Parent = bb
+end
 
 -- =================================================================
 -- 1. ENTITY NOTIFIER (УВЕДОМЛЕНИЯ О МОНСТРАХ)
@@ -80,7 +107,7 @@ Workspace.ChildAdded:Connect(function(child)
 end)
 
 -- =================================================================
--- 2. PLAYER (NOCLIP)
+-- 2. PLAYER (NOCLIP & 2X SPEED BOOST VIA CFRAME)
 -- =================================================================
 PlayerTab:Toggle({
     Title = "NoClip",
@@ -91,25 +118,46 @@ PlayerTab:Toggle({
     end
 })
 
-RunService.Stepped:Connect(function()
+PlayerTab:Toggle({
+    Title = "Speed Boost (2x via CFrame)",
+    Description = "Doubles your movement speed smoothly using CFrame.",
+    Value = false,
+    Callback = function(state)
+        speed2xEnabled = state
+    end
+})
+
+RunService.RenderStepped:Connect(function(dt)
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+
+    -- NoClip логика
     if noclipEnabled then
-        local char = LocalPlayer.Character
-        if char then
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
             end
+        end
+    end
+
+    -- Ускорение в 2 раза через CFrame
+    if speed2xEnabled and hrp and humanoid then
+        local moveDir = humanoid.MoveDirection
+        if moveDir.Magnitude > 0 then
+            -- Увеличиваем скорость передвижения в 2 раза
+            hrp.CFrame = hrp.CFrame + (moveDir * (humanoid.WalkSpeed * 1.2) * dt)
         end
     end
 end)
 
 -- =================================================================
--- 3. AUTO INTERACT (КЛЮЧИ, РЫЧАГИ, ДВЕРИ)
+-- 3. AUTO INTERACT & AUTO KEY (УМНЫЙ ВЫБОР БЕЗ КАРТИН)
 -- =================================================================
 MainTab:Toggle({
     Title = "Auto Open Doors, Keys & Levers",
-    Description = "Automatically opens doors, picks up keys, pulls levers, and ignores chairs.",
+    Description = "Automatically opens doors, picks up keys, pulls levers (ignores paintings & chairs).",
     Value = false,
     Callback = function(state)
         autoInteractEnabled = state
@@ -127,12 +175,15 @@ MainTab:Toggle({
                                 local parent = obj.Parent
                                 local parentName = parent and parent.Name:lower() or ""
                                 
+                                -- Фильтрация: игнорируем шкафы, стулья, картины и т.д.
                                 local isIgnored = actionText:find("hide") or actionText:find("enter") or actionText:find("sit") or
                                                   parentName:find("wardrobe") or parentName:find("closet") or 
                                                   parentName:find("bed") or parentName:find("couch") or 
                                                   parentName:find("sofa") or parentName:find("chair") or 
                                                   parentName:find("seat") or objectName:find("chair") or 
-                                                  objectName:find("seat") or objectName:find("sit")
+                                                  objectName:find("seat") or objectName:find("sit") or
+                                                  parentName:find("painting") or objectName:find("painting") or
+                                                  parentName:find("portrait") or objectName:find("portrait")
 
                                 if not isIgnored then
                                     local targetPart = nil
@@ -159,12 +210,57 @@ MainTab:Toggle({
     end
 })
 
+MainTab:Toggle({
+    Title = "Auto Key (Figure Library Puzzle)",
+    Description = "Automatically gathers books in Room 50 and unlocks the door.",
+    Value = false,
+    Callback = function(state)
+        autoKeyEnabled = state
+        task.spawn(function()
+            while autoKeyEnabled do
+                task.wait(0.5)
+                pcall(function()
+                    local char = LocalPlayer.Character
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    if not hrp then return end
+
+                    local rooms = Workspace:FindFirstChild("CurrentRooms")
+                    if rooms then
+                        for _, room in pairs(rooms:GetChildren()) do
+                            if room.Name == "50" or room:FindFirstChild("FigureSetup") then
+                                for _, item in pairs(room:GetDescendants()) do
+                                    if item.Name == "LiveHintBook" and item:FindFirstChild("Prompt") then
+                                        local prompt = item.Prompt
+                                        local targetPart = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
+                                        if targetPart and (hrp.Position - targetPart.Position).Magnitude < 15 then
+                                            fireproximityprompt(prompt)
+                                        end
+                                    end
+                                end
+
+                                local door = room:FindFirstChild("Door")
+                                local padlock = door and door:FindFirstChild("Padlock")
+                                if padlock then
+                                    local prompt = padlock:FindFirstChild("Prompt") or padlock:FindFirstChildWhichIsA("ProximityPrompt")
+                                    if prompt and (hrp.Position - padlock.Position).Magnitude < 12 then
+                                        fireproximityprompt(prompt)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+            end
+        end)
+    end
+})
+
 -- =================================================================
--- 4. VISUALS & ESP (ИСПРАВЛЕННЫЕ ДВЕРИ, ИГРОКИ, МОНСТРЫ, КЛЮЧИ)
+-- 4. VISUALS & ESP (ИСПРАВЛЕННЫЙ ESP КЛЮЧЕЙ И КНИГ)
 -- =================================================================
 ESPTab:Toggle({
-    Title = "ESP Doors, Keys & Levers",
-    Description = "Highlights active doors (green) and keys/levers (yellow).",
+    Title = "ESP Doors, Keys, Levers & Books",
+    Description = "Highlights active doors, keys, levers, and books (books only in Room 50).",
     Value = false,
     Callback = function(state)
         espItemsEnabled = state
@@ -199,16 +295,15 @@ task.spawn(function()
                 return
             end
 
-            -- Очищаем старый ESP перед новой отрисовкой
             espFolder:ClearAllChildren()
 
-            -- 1. ESP ДВЕРЕЙ И ПРЕДМЕТОВ
+            -- 1. ESP ДВЕРЕЙ, КЛЮЧЕЙ, РЫЧАГОВ И КНИГ
             if espItemsEnabled then
                 if Workspace:FindFirstChild("CurrentRooms") then
                     for _, room in pairs(Workspace.CurrentRooms:GetChildren()) do
+                        -- Двери
                         local door = room:FindFirstChild("Door")
                         if door then
-                            -- Ищем ручку или конкретный меш двери, чтобы не было гигантских коробок
                             local targetPart = door:FindFirstChild("Knob") or door:FindFirstChild("Door") or door:FindFirstChildWhichIsA("BasePart")
                             if targetPart and targetPart:IsA("BasePart") then
                                 local hl = Instance.new("Highlight")
@@ -217,24 +312,56 @@ task.spawn(function()
                                 hl.OutlineColor = Color3.fromRGB(255, 255, 255)
                                 hl.FillTransparency = 0.4
                                 hl.Parent = espFolder
+                                createBillboard(targetPart, "🚪 door", Color3.fromRGB(0, 255, 0))
+                            end
+                        end
+
+                        -- Книги строго в 50 комнате
+                        if room.Name == "50" or room:FindFirstChild("FigureSetup") then
+                            for _, item in pairs(room:GetDescendants()) do
+                                if item.Name == "LiveHintBook" then
+                                    local targetPart = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
+                                    if targetPart and targetPart:IsA("BasePart") then
+                                        local hl = Instance.new("Highlight")
+                                        hl.Adornee = item
+                                        hl.FillColor = Color3.fromRGB(0, 200, 255)
+                                        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                                        hl.FillTransparency = 0.4
+                                        hl.Parent = espFolder
+                                        createBillboard(targetPart, "📖 book", Color3.fromRGB(0, 200, 255))
+                                    end
+                                end
                             end
                         end
                     end
                 end
 
-                -- Ключи, рычаги, переключатели
+                -- Точный поиск ключей и рычагов (без ложных срабатываний на картины)
                 for _, obj in pairs(Workspace:GetDescendants()) do
                     if obj:IsA("Model") or obj:IsA("BasePart") then
                         local name = obj.Name:lower()
-                        if name:find("key") or name:find("lever") or name:find("breaker") or name:find("switch") or name:find("padlock") then
+                        local labelText = ""
+                        local color = Color3.fromRGB(255, 230, 0)
+
+                        -- Проверяем, что это точно ключ или замок (исключая картины с похожими именами)
+                        if (name == "key" or name == "keycard" or name == "padlock" or name:find("key[v%d]") or name:find("keyrig")) and not name:find("painting") then
+                            labelText = "🔑 key"
+                            color = Color3.fromRGB(255, 230, 0)
+                        elseif name:find("lever") or name:find("breaker") or name:find("switch") then
+                            labelText = "⚙️ lever"
+                            color = Color3.fromRGB(255, 140, 0)
+                        end
+
+                        if labelText ~= "" then
                             local targetPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
                             if targetPart and targetPart:IsA("BasePart") then
                                 local hl = Instance.new("Highlight")
                                 hl.Adornee = obj
-                                hl.FillColor = Color3.fromRGB(255, 230, 0) -- Желтый
+                                hl.FillColor = color
                                 hl.OutlineColor = Color3.fromRGB(255, 255, 255)
                                 hl.FillTransparency = 0.4
                                 hl.Parent = espFolder
+                                createBillboard(targetPart, labelText, color)
                             end
                         end
                     end
@@ -247,13 +374,14 @@ task.spawn(function()
                     if player ~= LocalPlayer and player.Character then
                         local char = player.Character
                         local hrp = char:FindFirstChild("HumanoidRootPart")
-                        if hrp and not char:FindFirstChildOfClass("Highlight") then
+                        if hrp then
                             local hl = Instance.new("Highlight")
                             hl.Adornee = char
-                            hl.FillColor = Color3.fromRGB(0, 150, 255) -- Синий
+                            hl.FillColor = Color3.fromRGB(0, 150, 255)
                             hl.OutlineColor = Color3.fromRGB(255, 255, 255)
                             hl.FillTransparency = 0.4
                             hl.Parent = espFolder
+                            createBillboard(hrp, player.Name, Color3.fromRGB(0, 150, 255))
                         end
                     end
                 end
@@ -267,10 +395,11 @@ task.spawn(function()
                         if targetPart and targetPart:IsA("BasePart") then
                             local hl = Instance.new("Highlight")
                             hl.Adornee = entity
-                            hl.FillColor = Color3.fromRGB(255, 0, 0) -- Красный для монстров
+                            hl.FillColor = Color3.fromRGB(255, 0, 0)
                             hl.OutlineColor = Color3.fromRGB(255, 255, 255)
                             hl.FillTransparency = 0.3
                             hl.Parent = espFolder
+                            createBillboard(targetPart, "⚠️ " .. entity.Name, Color3.fromRGB(255, 0, 0))
                         end
                     end
                 end
@@ -302,7 +431,7 @@ WorldTab:Toggle({
 
 -- Уведомление
 WindUI:Notify({
-    Title = "DOORS Script Updated",
-    Content = "Fixed door ESP, added Players and Monsters ESP!",
+    Title = "Hoverly Script Updated",
+    Content = "CFrame 2x Speed, No-Painting Auto Interact & Fixed ESP applied!",
     Duration = 4
 })
