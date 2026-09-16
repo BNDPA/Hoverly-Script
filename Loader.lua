@@ -1,165 +1,88 @@
---[[
-    Project: Hoverly Script | Multi-Game Loader & Key System
-    Repository: BNDPA/Hoverly-Script
-]]
+-- Загрузка библиотеки WindUI (убедитесь, что используете актуальную версию)
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/getSource.lua()"))()
 
-local success, WindUI = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
-end)
-
-if not success or not WindUI then
-    warn("Failed to load Wind UI!")
-    return
-end
-
-local Players = game:GetService("Players")
-local MarketplaceService = game:GetService("MarketplaceService")
-local LocalPlayer = Players.LocalPlayer
-local PlaceId = game.PlaceId
-local PlaceIdStr = tostring(PlaceId)
-
--- НАСТРОЙКИ КЛЮЧЕЙ И ССЫЛОК
-local CorrectKey = "HoverHub" -- Твой ключ
-local KeyLink = "https://lootdest.org/s?4i9ddpi0" -- Ссылка на получение ключа
-
--- ССЫЛКИ НА СКРИПТЫ ДЛЯ КАЖДОЙ ИГРЫ
-local GameScripts = {
-    ["DOORS"] = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/doors.lua",  
-    ["BABFT"] = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/babft.lua",  
-    ["MM2"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/mm2.lua",    
-    ["LT2"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/lt2.lua",    
-    ["NDS"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/nds.lua",    
-    ["BF"]    = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/bf.lua", -- Blox Fruits (1, 2, 3 море)
-}
-
--- Функция определения игры
-local function getGameType()
-    -- 1. Проверка для Blox Fruits (все места, начинающиеся с 2753: 1, 2, 3 моря)
-    if PlaceIdStr:sub(1, 4) == "2753" then
-        return "Blox Fruits", GameScripts["BF"]
-        
-    -- 2. Проверка для DOORS (префикс 5682)
-    elseif PlaceIdStr:sub(1, 4) == "5682" or PlaceId == 6839171747 then
-        return "DOORS", GameScripts["DOORS"]
-        
-    -- 3. Остальные игры по точным ID
-    elseif PlaceId == 537413528 then
-        return "Build A Boat For Treasure", GameScripts["BABFT"]
-    elseif PlaceId == 142823291 or PlaceId == 66653943 then
-        return "Murder Mystery 2", GameScripts["MM2"]
-    elseif PlaceId == 189707 then
-        return "Natural Disaster Survival", GameScripts["NDS"]
-    else
-        -- Запасной вариант: проверка по названию через MarketplaceService
-        local successInfo, info = pcall(function()
-            return MarketplaceService:GetProductInfo(PlaceId)
-        end)
-        if successInfo and info and info.Name then
-            local name = info.Name:lower()
-            if name:find("blox fruit") or name:find("piece") then
-                return "Blox Fruits", GameScripts["BF"]
-            elseif name:find("doors") then
-                return "DOORS", GameScripts["DOORS"]
-            elseif name:find("build a boat") then
-                return "Build A Boat For Treasure", GameScripts["BABFT"]
-            elseif name:find("murder mystery 2") then
-                return "Murder Mystery 2", GameScripts["MM2"]
-            elseif name:find("lumber tycoon 2") then
-                return "Lumber Tycoon 2", GameScripts["LT2"]
-            elseif name:find("natural disaster") then
-                return "Natural Disaster Survival", GameScripts["NDS"]
-            end
-        end
-    end
-    return "Unknown", nil
-end
-
-local gameName, gameScriptUrl = getGameType()
-
--- Создание окна Key System (WindUI)
-local KeyWindow = WindUI:CreateWindow({
-    Title = "Hoverly Script | Key System",
-    Icon = "key",
-    Author = "Hoverly Development",
-    Theme = "Dark",
+-- Создание главного окна авторизации
+local Window = WindUI:CreateWindow({
+    Title = "Howerly Hub | Key System",
+    Icon = "rbxassetid://10723424205", -- Иконка (можно изменить)
+    Author = "Security",
+    Size = UDim2.fromOffset(450, 260),
+    Transparent = true,
+    Theme = "Dark", -- Тема интерфейса
     Resizable = false,
 })
 
-local KeyTab = KeyWindow:Tab({ Title = "Authentication", Icon = "lock" })
-local inputtedKey = ""
+-- Создаем вкладку для ввода ключа
+local Tab = Window:Tab({
+    Title = "Авторизация",
+    Icon = "key",
+})
 
-KeyTab:Input({
-    Title = "Enter Key",
-    Description = "Detected Game: " .. gameName,
-    Placeholder = "Type key...",
-    Callback = function(text)
-        inputtedKey = text
+-- Переменная для хранения введенного ключа
+local enteredKey = ""
+
+-- Поле ввода текста (Input) для ключа
+Tab:Input({
+    Title = "Введите ключ",
+    Description = "Получите ключ в нашем Discord / Telegram",
+    PlaceholderText = "Введите ваш ключ здесь...",
+    Callback = function(value)
+        enteredKey = value
     end
 })
 
-KeyTab:Button({
-    Title = "Check Key & Load",
-    Description = "Verifies your key and loads the game script.",
+-- Кнопка проверки ключа
+Tab:Button({
+    Title = "Активировать ключ",
+    Description = "Нажмите для проверки ключа",
     Callback = function()
-        if inputtedKey == CorrectKey then
-            if not gameScriptUrl then
-                WindUI:Notify({
-                    Title = "Error",
-                    Content = "This game is not supported by Hoverly Script!",
-                    Duration = 4
-                })
-                return
-            end
-
+        -- ЗАМЕНИТЕ "YOUR_SECRET_KEY" на ваш реальный ключ
+        local correctKey = "YOUR_SECRET_KEY" 
+        
+        if enteredKey == correctKey then
+            -- Уведомление об успешном входе
             WindUI:Notify({
-                Title = "Success!",
-                Content = "Key accepted. Loading " .. gameName .. " script...",
-                Duration = 3
+                Title = "Успешно!",
+                Content = "Ключ принят. Запуск Howerly Hub...",
+                Duration = 3,
             })
             
-            KeyWindow:Destroy()
+            -- Закрываем окно авторизации
+            Window:Close()
             
-            -- Загрузка скрипта выбранной игры
-            local successLoad, err = pcall(function()
-                loadstring(game:HttpGet(gameScriptUrl))()
+            -- Небольшая задержка перед загрузкой основного скрипта
+            task.wait(0.5)
+            
+            -- Запуск вашего основного скрипта Loader.lua
+            local success, err = pcall(function()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/Loader.lua"))()
             end)
             
-            if not successLoad then
-                warn("Failed to load script: " + tostring(err))
-                WindUI:Notify({
-                    Title = "Load Error",
-                    Content = "Could not fetch the script from URL.",
-                    Duration = 4
-                })
+            if not success then
+                warn("Ошибка при загрузке Hub.lua: " .. tostring(err))
             end
         else
+            -- Уведомление об ошибке
             WindUI:Notify({
-                Title = "Access Denied",
-                Content = "Invalid key! Please try again.",
-                Duration = 3
+                Title = "Ошибка!",
+                Content = "Неверный ключ. Попробуйте снова.",
+                Duration = 3,
             })
         end
     end
 })
 
-KeyTab:Button({
-    Title = "Get Key",
-    Description = "Copies the link to get a key to your clipboard.",
+-- Дополнительная кнопка для получения ключа (опционально)
+Tab:Button({
+    Title = "Получить ключ",
+    Description = "Скопировать ссылку на получение ключа",
     Callback = function()
-        if setclipboard then
-            setclipboard(KeyLink)
-            WindUI:Notify({
-                Title = "Link Copied",
-                Content = "Key link copied to clipboard!",
-                Duration = 3
-            })
-        else
-            WindUI:Notify({
-                Title = "Error",
-                Content = "Your executor does not support setclipboard.",
-                Duration = 4
-            })
-        end
+        setclipboard("https://your-link-to-get-key.com") -- Замените на вашу ссылку
+        WindUI:Notify({
+            Title = "Ссылка скопирована",
+            Content = "Ссылка на получение ключа скопирована в буфер обмена!",
+            Duration = 3,
+        })
     end
 })
 
