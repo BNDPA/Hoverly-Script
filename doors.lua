@@ -1,6 +1,6 @@
 --[[
     Project: Hoverly Script | DOORS (Fixed & Updated)
-    Features: NoClip, 2x CFrame Speed Boost, Smart Auto Interact (No Paintings), ESP (Clean Doors, Room 50 Books, Precise Keys), Entity Notifier, Fullbright
+    Features: NoClip, Speed 20, Smart Auto Interact (No Paintings), ESP (Clean Doors, Room 50 Books, Precise Keys), Entity Notifier, Fullbright
 ]]
 
 local success, WindUI = pcall(function()
@@ -35,7 +35,7 @@ local WorldTab = Window:Tab({ Title = "World", Icon = "globe" })
 
 -- Состояния
 local noclipEnabled = false
-local speed2xEnabled = false
+local speedEnabled = false
 local autoInteractEnabled = false
 local autoKeyEnabled = false
 local espItemsEnabled = false
@@ -107,7 +107,7 @@ Workspace.ChildAdded:Connect(function(child)
 end)
 
 -- =================================================================
--- 2. PLAYER (NOCLIP & 2X SPEED BOOST VIA CFRAME)
+-- 2. PLAYER (NOCLIP & SPEED 20)
 -- =================================================================
 PlayerTab:Toggle({
     Title = "NoClip",
@@ -119,18 +119,17 @@ PlayerTab:Toggle({
 })
 
 PlayerTab:Toggle({
-    Title = "Speed Boost (2x via CFrame)",
-    Description = "Doubles your movement speed smoothly using CFrame.",
+    Title = "Speed (20)",
+    Description = "Sets your walk speed to 20 instead of default 16.",
     Value = false,
     Callback = function(state)
-        speed2xEnabled = state
+        speedEnabled = state
     end
 })
 
-RunService.RenderStepped:Connect(function(dt)
+RunService.Stepped:Connect(function()
     local char = LocalPlayer.Character
     if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
     local humanoid = char:FindFirstChildOfClass("Humanoid")
 
     -- NoClip логика
@@ -142,12 +141,14 @@ RunService.RenderStepped:Connect(function(dt)
         end
     end
 
-    -- Ускорение в 2 раза через CFrame
-    if speed2xEnabled and hrp and humanoid then
-        local moveDir = humanoid.MoveDirection
-        if moveDir.Magnitude > 0 then
-            -- Увеличиваем скорость передвижения в 2 раза
-            hrp.CFrame = hrp.CFrame + (moveDir * (humanoid.WalkSpeed * 1.2) * dt)
+    -- Установка скорости 20
+    if humanoid then
+        if speedEnabled then
+            humanoid.WalkSpeed = 20
+        else
+            if humanoid.WalkSpeed == 20 then
+                humanoid.WalkSpeed = 16
+            end
         end
     end
 end)
@@ -432,6 +433,7 @@ WorldTab:Toggle({
 -- Уведомление
 WindUI:Notify({
     Title = "Hoverly Script Updated",
-    Content = "CFrame 2x Speed, No-Painting Auto Interact & Fixed ESP applied!",
+    Content = "Speed set to 20 applied successfully!",
     Duration = 4
 })
+
