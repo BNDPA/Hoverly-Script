@@ -29,31 +29,24 @@ local GameScripts = {
     ["MM2"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/mm2.lua",    
     ["LT2"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/lt2.lua",    
     ["NDS"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/nds.lua",    
-    ["BF"]    = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/bf.lua", -- Blox Fruits
+    ["BF"]    = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/bf.lua", -- Blox Fruits (1, 2, 3 море)
 }
 
 -- Функция определения игры
 local function getGameType()
-    -- Проверка для DOORS (префикс 5682)
-    if PlaceIdStr:sub(1, 4) == "5682" or PlaceId == 6839171747 then
-        return "DOORS", GameScripts["DOORS"]
-        
-    -- Проверка для Blox Fruits (теперь все плейсы с началом 2753 поддерживаются)
-    elseif PlaceIdStr:sub(1, 4) == "2753" then
+    -- 1. Проверка для Blox Fruits (ВСЕ моря, начинающиеся с 2753, теперь ловятся первыми)
+    if PlaceIdStr:sub(1, 4) == "27539" then
         return "Blox Fruits", GameScripts["BF"]
         
+    -- 2. Проверка для DOORS (префикс 5682)
+    elseif PlaceIdStr:sub(1, 4) == "5682" or PlaceId == 6839171747 then
+        return "DOORS", GameScripts["DOORS"]
+        
+    -- 3. Остальные игры по точным ID
     elseif PlaceId == 537413528 then
         return "Build A Boat For Treasure", GameScripts["BABFT"]
     elseif PlaceId == 142823291 or PlaceId == 66653943 then
         return "Murder Mystery 2", GameScripts["MM2"]
-    elseif PlaceId == 2753915549 then -- Оставлено как точное совпадение на всякий случай
-        return "Blox Fruits", GameScripts["BF"]
-    elseif PlaceId == 13822889 then
-        return "Blox Fruits", GameScripts["BF"]
-    elseif PlaceId == 13822889 then
-        return "Blox Fruits", GameScripts["BF"]
-    elseif PlaceId == 2753915549 then
-        return "Lumber Tycoon 2", GameScripts["LT2"]
     elseif PlaceId == 189707 then
         return "Natural Disaster Survival", GameScripts["NDS"]
     else
@@ -63,10 +56,10 @@ local function getGameType()
         end)
         if successInfo and info and info.Name then
             local name = info.Name:lower()
-            if name:find("doors") then
-                return "DOORS", GameScripts["DOORS"]
-            elseif name:find("blox fruit") or name:find("piece") then
+            if name:find("blox fruit") or name:find("piece") then
                 return "Blox Fruits", GameScripts["BF"]
+            elseif name:find("doors") then
+                return "DOORS", GameScripts["DOORS"]
             elseif name:find("build a boat") then
                 return "Build A Boat For Treasure", GameScripts["BABFT"]
             elseif name:find("murder mystery 2") then
@@ -106,6 +99,69 @@ KeyTab:Input({
 
 KeyTab:Button({
     Title = "Check Key & Load",
+    Description = "Verifies your key and loads the game script.",
+    Callback = function()
+        if inputtedKey == CorrectKey then
+            if not gameScriptUrl then
+                WindUI:Notify({
+                    Title = "Error",
+                    Content = "This game is not supported by Hoverly Script!",
+                    Duration = 4
+                })
+                return
+            end
+
+            WindUI:Notify({
+                Title = "Success!",
+                Content = "Key accepted. Loading " .. gameName .. " script...",
+                Duration = 3
+            })
+            
+            KeyWindow:Destroy()
+            
+            -- Загрузка скрипта выбранной игры
+            local successLoad, err = pcall(function()
+                loadstring(game:HttpGet(gameScriptUrl))()
+            end)
+            
+            if not successLoad then
+                warn("Failed to load script: " .. tostring(err))
+                WindUI:Notify({
+                    Title = "Load Error",
+                    Content = "Could not fetch the script from URL.",
+                    Duration = 4
+                })
+            end
+        else
+            WindUI:Notify({
+                Title = "Access Denied",
+                Content = "Invalid key! Please try again.",
+                Duration = 3
+            })
+        end
+    end
+})
+
+KeyTab:Button({
+    Title = "Get Key",
+    Description = "Copies the link to get a key to your clipboard.",
+    Callback = function()
+        if setclipboard then
+            setclipboard(KeyLink)
+            WindUI:Notify({
+                Title = "Link Copied",
+                Content = "Key link copied to clipboard!",
+                Duration = 3
+            })
+        else
+            WindUI:Notify({
+                Title = "Error",
+                Content = "Your executor does not support setclipboard.",
+                Duration = 4
+            })
+        end
+    end
+})
     Description = "Verifies your key and loads the game script.",
     Callback = function()
         if inputtedKey == CorrectKey then
