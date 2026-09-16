@@ -13,7 +13,7 @@ local Window = WindUI:CreateWindow({
     Size = UDim2.fromOffset(480, 280),
     Transparent = true,
     Theme = "Dark",
-    SideBarWidth = 140, -- Возвращаем ширину, чтобы вкладка была видна
+    SideBarWidth = 140,
     HasOutline = true,
 })
 
@@ -43,8 +43,8 @@ Tab:Button({
                 Duration = 3,
             })
             
-            -- Закрываем окно проверки
-            Window:Close()
+            -- Полностью удаляем окно Key System с экрана
+            Window:Destroy()
             
             -- Загружаем ваш основной хаб
             task.spawn(function()
