@@ -22,26 +22,34 @@ local PlaceIdStr = tostring(PlaceId)
 local CorrectKey = "HoverHub" -- Твой ключ
 local KeyLink = "https://lootdest.org/s?4i9ddpi0" -- Ссылка на получение ключа
 
--- ССЫЛКИ НА СКРИПТЫ ДЛЯ КАЖДОЙ ИГРЫ (замени ссылки на свои сырые GitHub файлы / raw)
+-- ССЫЛКИ НА СКРИПТЫ ДЛЯ КАЖДОЙ ИГРЫ
 local GameScripts = {
-    ["DOORS"] = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/doors.lua",  -- Ссылка на твой скрипт DOORS
-    ["BABFT"] = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/babft.lua",  -- Build A Boat For Treasure
-    ["MM2"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/mm2.lua",    -- Murder Mystery 2
-    ["LT2"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/lt2.lua",    -- Lumber Tycoon 2
-    ["NDS"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/nds.lua",    -- Natural Disaster Survival
-    ["BF"]    = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/bf.lua", -- Blox Fruit
-
+    ["DOORS"] = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/doors.lua",  
+    ["BABFT"] = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/babft.lua",  
+    ["MM2"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/mm2.lua",    
+    ["LT2"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/lt2.lua",    
+    ["NDS"]   = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/nds.lua",    
+    ["BF"]    = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/bf.lua", -- Blox Fruits
 }
 
 -- Функция определения игры
 local function getGameType()
-    -- Проверка на префикс 5682 для DOORS, как ты и просил
+    -- Проверка для DOORS (префикс 5682)
     if PlaceIdStr:sub(1, 4) == "5682" or PlaceId == 6839171747 then
         return "DOORS", GameScripts["DOORS"]
+        
+    -- Проверка для Blox Fruits (теперь все плейсы с началом 2753 поддерживаются)
+    elseif PlaceIdStr:sub(1, 4) == "2753" then
+        return "Blox Fruits", GameScripts["BF"]
+        
     elseif PlaceId == 537413528 then
         return "Build A Boat For Treasure", GameScripts["BABFT"]
     elseif PlaceId == 142823291 or PlaceId == 66653943 then
         return "Murder Mystery 2", GameScripts["MM2"]
+    elseif PlaceId == 2753915549 then -- Оставлено как точное совпадение на всякий случай
+        return "Blox Fruits", GameScripts["BF"]
+    elseif PlaceId == 13822889 then
+        return "Blox Fruits", GameScripts["BF"]
     elseif PlaceId == 13822889 then
         return "Blox Fruits", GameScripts["BF"]
     elseif PlaceId == 2753915549 then
@@ -57,6 +65,8 @@ local function getGameType()
             local name = info.Name:lower()
             if name:find("doors") then
                 return "DOORS", GameScripts["DOORS"]
+            elseif name:find("blox fruit") or name:find("piece") then
+                return "Blox Fruits", GameScripts["BF"]
             elseif name:find("build a boat") then
                 return "Build A Boat For Treasure", GameScripts["BABFT"]
             elseif name:find("murder mystery 2") then
