@@ -53,7 +53,7 @@ local farmWaypointsList = {
 local farmWaypointNames = {"x2 appeal", "x3 appeal", "X5 appeal", "x8 appeal", "x12 appeal", "x18 appeal"}
 local selectedFarmWaypoint = "x2 appeal" -- По умолчанию
 
--- Список точек Auto Mog
+-- Список точек Auto Mog (с обновленными именами и новой точкой AdamLite)
 local mogWaypointsList = {
     ["Subhuman"] = {path = CFrame.new(-120.23, 5.96, -83.34), target = CFrame.new(-120.23, 10.64, -55.60)},
     ["Sub 3"]    = {path = CFrame.new(-160.72, 5.99, -83.82), target = CFrame.new(-160.68, 12.74, -54.65)},
@@ -62,7 +62,7 @@ local mogWaypointsList = {
     ["MTN"]      = {path = CFrame.new(-281.45, 5.99, -83.65), target = CFrame.new(-279.76, 10.83, -55.84)},
     ["HTN"]      = {path = CFrame.new(-325.83, 6.49, -83.75), target = CFrame.new(-319.91, 11.21, -52.39)},
     ["ChadLite"] = {path = CFrame.new(-357.78, 6.58, -70.35), target = CFrame.new(-360.33, 11.86, -52.86)},
-    ["Chad"]     = {path = CFrame.new(-400.42, 6.78, -71.99), target = CFrame.new(-401.11, 10.57, -51.74)}
+    ["Chad"]     = {path = CFrame.new(-400.42, 6.78, -71.99), target = CFrame.new(-401.11, 10.57, -51.74)},
     ["AdamLite"] = {path = CFrame.new(-440.43, 6.96, -74.95), target = CFrame.new(-440.64, 14.14, -54.98)}
 }
 
