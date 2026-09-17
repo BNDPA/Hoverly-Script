@@ -1,6 +1,6 @@
 --[[
-    Project: Hoverly Script | DOORS (Fixed & Updated)
-    Features: NoClip, Speed 20, Smart Auto Interact (No Paintings), ESP (Clean Doors, Room 50 Books, Precise Keys), Entity Notifier, Fullbright
+    Project: Hoverly Script | DOORS (Auto Play Removed, Smart NoClip & Auto Loot)
+    Features: Smart NoClip (Small Parts Only), Auto Hide/Sit, Auto Keys, Speed 20, ESP
 ]]
 
 local success, WindUI = pcall(function()
@@ -16,9 +16,9 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
+local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
--- Создаем главное окно скрипта для DOORS
 local Window = WindUI:CreateWindow({
     Title = "Hoverly Script | DOORS",
     Icon = "door-closed",
@@ -27,28 +27,28 @@ local Window = WindUI:CreateWindow({
     Resizable = true,
 })
 
--- Вкладки
 local MainTab = Window:Tab({ Title = "Main / Auto", Icon = "home" })
 local PlayerTab = Window:Tab({ Title = "Player", Icon = "user" })
 local ESPTab = Window:Tab({ Title = "Visuals (ESP)", Icon = "eye" })
 local WorldTab = Window:Tab({ Title = "World", Icon = "globe" })
 
--- Состояния
 local noclipEnabled = false
 local speedEnabled = false
 local autoInteractEnabled = false
 local autoKeyEnabled = false
+local autoCheckScreechEnabled = false
 local espItemsEnabled = false
 local espPlayersEnabled = false
 local espEntitiesEnabled = false
+local espClosetsEnabled = false
 local entityNotifierEnabled = false
 
--- Папка для ESP
+local monsterActive = false
+
 local espFolder = Instance.new("Folder")
 espFolder.Name = "HoverlyDOORS_ESP"
 espFolder.Parent = Workspace
 
--- Функция для создания текстовых подписей (BillboardGui)
 local function createBillboard(target, text, color)
     if not target then return end
     local existing = target:FindFirstChild("HoverlyTag")
@@ -74,14 +74,23 @@ local function createBillboard(target, text, color)
 end
 
 -- =================================================================
--- 1. ENTITY NOTIFIER (УВЕДОМЛЕНИЯ О МОНСТРАХ)
+-- 1. ENTITY NOTIFIER & SCREECH AUTO CHECK
 -- =================================================================
 MainTab:Toggle({
     Title = "Entity Notifier (Notice)",
-    Description = "Warns you when Rush, Ambush, Eyes or other entities spawn.",
+    Description = "Warns you when Rush, Ambush, Screech, Eyes or other entities spawn.",
     Value = false,
     Callback = function(state)
         entityNotifierEnabled = state
+    end
+})
+
+MainTab:Toggle({
+    Title = "Auto Check Screech",
+    Description = "Automatically turns your camera to look at Screech instantly.",
+    Value = false,
+    Callback = function(state)
+        autoCheckScreechEnabled = state
     end
 })
 
@@ -91,27 +100,75 @@ local monitoredEntities = {
     ["Eyes"] = "Eyes spawned! Don't look at them!",
     ["Halt"] = "Halt room! Turn around or move back!",
     ["A-60"] = "A-60 is coming! HIDE IN A LOCKER!",
-    ["A-120"] = "A-120 is coming! HIDE QUICKLY!"
+    ["A-120"] = "A-120 is coming! HIDE QUICKLY!",
+    ["Screech"] = "Screech appeared! Looking at him..."
 }
 
 Workspace.ChildAdded:Connect(function(child)
-    if entityNotifierEnabled then
-        if monitoredEntities[child.Name] then
+    local name = child.Name
+    if monitoredEntities[name] then
+        if name ~= "Eyes" and name ~= "Screech" then
+            monsterActive = true
+        end
+
+        if entityNotifierEnabled then
             WindUI:Notify({
-                Title = "⚠️ WARNING: " .. child.Name,
-                Content = monitoredEntities[child.Name],
-                Duration = 6
+                Title = "⚠️ WARNING: " .. name,
+                Content = monitoredEntities[name],
+                Duration = 4
             })
         end
     end
 end)
 
+Workspace.ChildRemoved:Connect(function(child)
+    if monitoredEntities[child.Name] then
+        local dangerFound = false
+        for _, entName in pairs({"RushMoving", "AmbushMoving", "A-60", "A-120", "Halt"}) do
+            if Workspace:FindFirstChild(entName) then
+                dangerFound = true
+                break
+            end
+        end
+        if not dangerFound then
+            monsterActive = false
+        end
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if not autoCheckScreechEnabled then return end
+    
+    pcall(function()
+        local screechTarget = nil
+        for _, obj in pairs(Workspace:GetChildren()) do
+            if obj.Name:lower():find("screech") then
+                screechTarget = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
+                break
+            end
+        end
+
+        if not screechTarget and LocalPlayer.Character then
+            for _, obj in pairs(LocalPlayer.Character:GetChildren()) do
+                if obj.Name:lower():find("screech") then
+                    screechTarget = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
+                    break
+                end
+            end
+        end
+
+        if screechTarget and screechTarget:IsA("BasePart") then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, screechTarget.Position)
+        end
+    end)
+end)
+
 -- =================================================================
--- 2. PLAYER (NOCLIP & SPEED 20)
+-- 2. PLAYER (УМНЫЙ NOCLIP ТОЛЬКО ДЛЯ МЕЛКИХ ХИТБОКСОВ & SPEED 20)
 -- =================================================================
 PlayerTab:Toggle({
-    Title = "NoClip",
-    Description = "Walk through walls, doors, and obstacles.",
+    Title = "Smart NoClip (Small Parts Only)",
+    Description = "Walks through small hitboxes, chairs, and obstacles without falling through walls/floors.",
     Value = false,
     Callback = function(state)
         noclipEnabled = state
@@ -132,16 +189,22 @@ RunService.Stepped:Connect(function()
     if not char then return end
     local humanoid = char:FindFirstChildOfClass("Humanoid")
 
-    -- NoClip логика
     if noclipEnabled then
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
-                part.CanCollide = false
+                local touchingParts = part:GetTouchingParts()
+                for _, touchPart in pairs(touchingParts) do
+                    if touchPart and touchPart.Parent ~= char then
+                        local size = touchPart.Size
+                        if size.X < 4 and size.Y < 4 and size.Z < 4 and not touchPart.Name:lower():find("door") then
+                            touchPart.CanCollide = false
+                        end
+                    end
+                end
             end
         end
     end
 
-    -- Установка скорости 20
     if humanoid then
         if speedEnabled then
             humanoid.WalkSpeed = 20
@@ -154,11 +217,11 @@ RunService.Stepped:Connect(function()
 end)
 
 -- =================================================================
--- 3. AUTO INTERACT & AUTO KEY (УМНЫЙ ВЫБОР БЕЗ КАРТИН)
+-- 3. AUTO INTERACT & AUTO KEY
 -- =================================================================
 MainTab:Toggle({
     Title = "Auto Open Doors, Keys & Levers",
-    Description = "Automatically opens doors, picks up keys, pulls levers (ignores paintings & chairs).",
+    Description = "Automatically opens doors, picks up keys, pulls levers. Interacts with closets/seats when needed.",
     Value = false,
     Callback = function(state)
         autoInteractEnabled = state
@@ -176,15 +239,15 @@ MainTab:Toggle({
                                 local parent = obj.Parent
                                 local parentName = parent and parent.Name:lower() or ""
                                 
-                                -- Фильтрация: игнорируем шкафы, стулья, картины и т.д.
-                                local isIgnored = actionText:find("hide") or actionText:find("enter") or actionText:find("sit") or
-                                                  parentName:find("wardrobe") or parentName:find("closet") or 
-                                                  parentName:find("bed") or parentName:find("couch") or 
-                                                  parentName:find("sofa") or parentName:find("chair") or 
-                                                  parentName:find("seat") or objectName:find("chair") or 
-                                                  objectName:find("seat") or objectName:find("sit") or
-                                                  parentName:find("painting") or objectName:find("painting") or
-                                                  parentName:find("portrait") or objectName:find("portrait")
+                                local isIgnored = false
+                                local isHideAction = actionText:find("hide") or actionText:find("enter") or 
+                                                     parentName:find("wardrobe") or parentName:find("closet") or parentName:find("bed")
+
+                                if isHideAction then
+                                    if not monsterActive then
+                                        isIgnored = true
+                                    end
+                                end
 
                                 if not isIgnored then
                                     local targetPart = nil
@@ -197,7 +260,7 @@ MainTab:Toggle({
                                     end
 
                                     if targetPart and targetPart:IsA("BasePart") then
-                                        if (hrp.Position - targetPart.Position).Magnitude <= 12 then
+                                        if (hrp.Position - targetPart.Position).Magnitude <= 14 then
                                             fireproximityprompt(obj)
                                         end
                                     end
@@ -257,7 +320,7 @@ MainTab:Toggle({
 })
 
 -- =================================================================
--- 4. VISUALS & ESP (ИСПРАВЛЕННЫЙ ESP КЛЮЧЕЙ И КНИГ)
+-- 4. VISUALS & ESP
 -- =================================================================
 ESPTab:Toggle({
     Title = "ESP Doors, Keys, Levers & Books",
@@ -265,6 +328,15 @@ ESPTab:Toggle({
     Value = false,
     Callback = function(state)
         espItemsEnabled = state
+    end
+})
+
+ESPTab:Toggle({
+    Title = "ESP Closets / Wardrobes",
+    Description = "Highlights hideable closets and wardrobes in purple.",
+    Value = false,
+    Callback = function(state)
+        espClosetsEnabled = state
     end
 })
 
@@ -286,23 +358,20 @@ ESPTab:Toggle({
     end
 })
 
--- Главный цикл отрисовки ESP
 task.spawn(function()
     while true do
         task.wait(1)
         pcall(function()
-            if not espItemsEnabled and not espPlayersEnabled and not espEntitiesEnabled then
+            if not espItemsEnabled and not espPlayersEnabled and not espEntitiesEnabled and not espClosetsEnabled then
                 espFolder:ClearAllChildren()
                 return
             end
 
             espFolder:ClearAllChildren()
 
-            -- 1. ESP ДВЕРЕЙ, КЛЮЧЕЙ, РЫЧАГОВ И КНИГ
             if espItemsEnabled then
                 if Workspace:FindFirstChild("CurrentRooms") then
                     for _, room in pairs(Workspace.CurrentRooms:GetChildren()) do
-                        -- Двери
                         local door = room:FindFirstChild("Door")
                         if door then
                             local targetPart = door:FindFirstChild("Knob") or door:FindFirstChild("Door") or door:FindFirstChildWhichIsA("BasePart")
@@ -317,7 +386,6 @@ task.spawn(function()
                             end
                         end
 
-                        -- Книги строго в 50 комнате
                         if room.Name == "50" or room:FindFirstChild("FigureSetup") then
                             for _, item in pairs(room:GetDescendants()) do
                                 if item.Name == "LiveHintBook" then
@@ -337,14 +405,12 @@ task.spawn(function()
                     end
                 end
 
-                -- Точный поиск ключей и рычагов (без ложных срабатываний на картины)
                 for _, obj in pairs(Workspace:GetDescendants()) do
                     if obj:IsA("Model") or obj:IsA("BasePart") then
                         local name = obj.Name:lower()
                         local labelText = ""
                         local color = Color3.fromRGB(255, 230, 0)
 
-                        -- Проверяем, что это точно ключ или замок (исключая картины с похожими именами)
                         if (name == "key" or name == "keycard" or name == "padlock" or name:find("key[v%d]") or name:find("keyrig")) and not name:find("painting") then
                             labelText = "🔑 key"
                             color = Color3.fromRGB(255, 230, 0)
@@ -369,7 +435,26 @@ task.spawn(function()
                 end
             end
 
-            -- 2. ESP ИГРОКОВ
+            if espClosetsEnabled then
+                for _, obj in pairs(Workspace:GetDescendants()) do
+                    if obj:IsA("Model") or obj:IsA("BasePart") then
+                        local name = obj.Name:lower()
+                        if name:find("wardrobe") or name:find("closet") or name:find("bed") then
+                            local targetPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
+                            if targetPart and targetPart:IsA("BasePart") then
+                                local hl = Instance.new("Highlight")
+                                hl.Adornee = obj
+                                hl.FillColor = Color3.fromRGB(160, 32, 240)
+                                hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                                hl.FillTransparency = 0.4
+                                hl.Parent = espFolder
+                                createBillboard(targetPart, "🗄️ closet", Color3.fromRGB(160, 32, 240))
+                            end
+                        end
+                    end
+                end
+            end
+
             if espPlayersEnabled then
                 for _, player in pairs(Players:GetPlayers()) do
                     if player ~= LocalPlayer and player.Character then
@@ -388,10 +473,9 @@ task.spawn(function()
                 end
             end
 
-            -- 3. ESP МОНСТРОВ (Entity)
             if espEntitiesEnabled then
                 for _, entity in pairs(Workspace:GetChildren()) do
-                    if monitoredEntities[entity.Name] or entity.Name == "RushMoving" or entity.Name == "AmbushMoving" or entity.Name == "Eyes" or entity.Name == "Halt" or entity.Name == "Figure" then
+                    if monitoredEntities[entity.Name] or entity.Name == "RushMoving" or entity.Name == "AmbushMoving" or entity.Name == "Eyes" or entity.Name == "Halt" or entity.Name == "Figure" or entity.Name:lower():find("screech") then
                         local targetPart = entity:IsA("Model") and (entity.PrimaryPart or entity:FindFirstChildWhichIsA("BasePart")) or entity
                         if targetPart and targetPart:IsA("BasePart") then
                             local hl = Instance.new("Highlight")
@@ -430,10 +514,9 @@ WorldTab:Toggle({
     end
 })
 
--- Уведомление
 WindUI:Notify({
     Title = "Hoverly Script Updated",
-    Content = "Speed set to 20 applied successfully!",
+    Content = "Auto Play removed. Script updated successfully!",
     Duration = 4
 })
 
