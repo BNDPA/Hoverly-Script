@@ -25,7 +25,7 @@ end
 HitStat("total_hub")
 
 -- =========================================================================
--- БАЗА ДАННЫХ ИГР (Universal стоит на первом месте)
+-- БАЗА ДАННЫХ ИГР (Universal первый в списке для вкладки "Выбор игры")
 -- =========================================================================
 local UniversalData = {
     Name = "Universal",
@@ -36,7 +36,6 @@ local UniversalData = {
 }
 
 local Games = {
-    UniversalData, -- Универсальный скрипт в самом верху
     {
         Name = "DOORS",
         PlaceId = {6516141723, 6839171747},
@@ -74,11 +73,10 @@ local Games = {
     }
 }
 
--- Функция для авто-детекта текущей игры (пропускаем Universal в поиске по ID)
+-- Функция для авто-детекта (теперь корректно проверяет все игры из таблицы)
 local function GetCurrentSupportedGame()
     local currentId = game.PlaceId
-    for i = 2, #Games do -- Начинаем со 2-го элемента, т.к. 1-й это Universal
-        local gameData = Games[i]
+    for _, gameData in ipairs(Games) do
         for _, id in ipairs(gameData.PlaceId) do
             if id == currentId then
                 return gameData
@@ -174,7 +172,7 @@ else
 end
 
 -- =========================================================================
--- ВКЛАДКА: ВЫБОР ИГР (С Universal вверху)
+-- ВКЛАДКА: ВЫБОР ИГР (Universal в самом верху, затем остальные игры)
 -- =========================================================================
 local GamesTab = Window:Tab({
     Title = "Выбор игры",
@@ -186,10 +184,37 @@ GamesTab:Paragraph({
     Desc = "Выберите нужную игру или универсальный скрипт вручную.",
 })
 
+-- Сначала добавляем кнопку Universal в самый верх
+GamesTab:Button({
+    Title = UniversalData.Name,
+    Desc = "Запустить универсальный скрипт",
+    Icon = UniversalData.Icon,
+    Callback = function()
+        HitStat(UniversalData.KeyName)
+        WindUI:Notify({
+            Title = "Загрузка...",
+            Content = "Загружается: " .. UniversalData.Name,
+            Duration = 2,
+        })
+        
+        pcall(function() Window:Destroy() end)
+        
+        local success, err = pcall(function()
+            loadstring(game:HttpGet(UniversalData.ScriptUrl))()
+        end)
+        
+        if not success then
+            WindUI:Notify({ Title = "Ошибка загрузки", Content = tostring(err), Duration = 5 })
+            warn("Не удалось выполнить скрипт: " .. tostring(err))
+        end
+    end
+})
+
+-- Затем выводим остальные игры из списка
 for _, gameData in ipairs(Games) do
     GamesTab:Button({
         Title = gameData.Name,
-        Desc = gameData.Name == "Universal" and "Запустить универсальный скрипт" or ("Загрузить " .. gameData.Name .. ".lua"),
+        Desc = "Загрузить " .. gameData.Name .. ".lua",
         Icon = gameData.Icon,
         Callback = function()
             HitStat(gameData.KeyName)
@@ -240,7 +265,8 @@ task.spawn(function()
     while true do
         local totalOnline = GetStat("total_hub")
         
-        local statsText = ""
+        -- Собираем статистику для Universal и всех игр
+        local statsText = "• Universal: **" .. GetStat(UniversalData.KeyName) .. "** запусков\n"
         for _, gameData in ipairs(Games) do
             local count = GetStat(gameData.KeyName)
             statsText = statsText .. "• " .. gameData.Name .. ": **" .. count .. "** запусков\n"
@@ -256,3 +282,4 @@ task.spawn(function()
 end)
 
 Window:SelectTab(1)
+
