@@ -1,23 +1,10 @@
 -- Загрузка библиотеки WindUI
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
-local HttpService = game:GetService("HttpService")
-local VirtualUser = game:GetService("VirtualUser")
-local RunService = game:GetService("RunService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-
--- =========================================================================
--- НАСТРОЙКА СТАТИСТИКИ (COUNTAPI)
--- =========================================================================
-local NAMESPACE = "hoverlyhub_bndpa_mog_2026"
-
-local function HitStat(key)
-    pcall(function()
-        game:HttpGet("https://api.countapi.xyz/hit/" .. NAMESPACE .. "/" .. key, true)
-    end)
-end
-
-HitStat("mog_evolution")
+local Camera = workspace.CurrentCamera
 
 -- =========================================================================
 -- СОЗДАНИЕ ОКНА (Hoverly Script | Mog Evolution)
@@ -27,28 +14,15 @@ local Window = WindUI:CreateWindow({
     Icon = "zap",
     Author = "BNDPA",
     Folder = "HoverlyMogEvolution",
-    Size = UDim2.fromOffset(520, 360),
+    Size = UDim2.fromOffset(450, 250),
     Transparent = true,
     Theme = "Dark",
-    SideBarWidth = 175,
+    SideBarWidth = 140,
     HasOutline = true,
 })
 
 -- =========================================================================
--- ВКЛАДКА: ГЛАВНАЯ
--- =========================================================================
-local MainTab = Window:Tab({
-    Title = "Главная",
-    Icon = "home",
-})
-
-MainTab:Paragraph({
-    Title = "Mog Evolution Script",
-    Desc = "Скрипт успешно загружен для игры Mog Evolution.\nПерейдите во вкладку Farm для настройки ультра-быстрого автокликера.",
-})
-
--- =========================================================================
--- ВКЛАДКА: FARM (Автокликер 20 мс)
+-- ВКЛАДКА: FARM
 -- =========================================================================
 local FarmTab = Window:Tab({
     Title = "Farm",
@@ -56,49 +30,76 @@ local FarmTab = Window:Tab({
 })
 
 FarmTab:Paragraph({
-    Title = "Автокликер экрана",
-    Desc = "Молниеносные нажатия на экран с задержкой 20 мс.",
+    Title = "Авто фарм и кликер",
+    Desc = "Плавный полет к точке, возврат назад и клики слева от центра (20 мс).",
 })
 
-local AutoClickEnabled = false
+local AutoFarmEnabled = false
+local targetCFrame = CFrame.new(-36.45, 5.62, -124.53)
+local originalCFrame = nil
 
 FarmTab:Toggle({
-    Title = "Auto Click (20 мс)",
+    Title = "Auto Farm & Click (20 мс)",
     Default = false,
     Callback = function(state)
-        AutoClickEnabled = state
+        AutoFarmEnabled = state
+        
+        local character = LocalPlayer.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local rootPart = character.HumanoidRootPart
+            
+            if AutoFarmEnabled then
+                -- Запоминаем текущую позицию игрока перед полетом
+                originalCFrame = rootPart.CFrame
+                
+                -- Плавный полет к целевой точке
+                local distance = (rootPart.Position - targetCFrame.Position).Magnitude
+                local flightSpeed = 30
+                local flightTime = math.clamp(distance / flightSpeed, 0.5, 3)
+                
+                local tweenInfo = TweenInfo.new(flightTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+                local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+                tween:Play()
+            else
+                -- Если выключили — летим обратно на исходную позицию
+                if originalCFrame then
+                    local distance = (rootPart.Position - originalCFrame.Position).Magnitude
+                    local flightSpeed = 30
+                    local flightTime = math.clamp(distance / flightSpeed, 0.5, 3)
+                    
+                    local tweenInfo = TweenInfo.new(flightTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+                    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = originalCFrame})
+                    tween:Play()
+                end
+            end
+        end
     end
 })
 
--- Логика ультра-быстрого автокликера (каждые 20 миллисекунд / 0.02 сек)
+-- Ультра-быстрый кликер (20 мс) чуть левее центра экрана с небольшой рандомизацией
 task.spawn(function()
+    math.randomseed(tick())
     while true do
-        if AutoClickEnabled then
+        if AutoFarmEnabled then
             pcall(function()
-                local mouse = LocalPlayer:GetMouse()
-                VirtualUser:Button1Down(Vector2.new(mouse.X, mouse.Y), workspace.CurrentCamera.CFrame)
+                local viewportSize = Camera.ViewportSize
+                local centerX = viewportSize.X / 2
+                local centerY = viewportSize.Y / 2
+                
+                -- Центрируем область кликов левее центра (например, смещение влево на 50–150 пикселей)
+                local randomX = math.random(centerX - 150, centerX - 50)
+                local randomY = math.random(centerY - 100, centerY + 100)
+                
+                -- Эмулируем клик
+                VirtualInputManager:SendMouseButtonEvent(randomX, randomY, 0, true, game, 0)
                 task.wait(0.01)
-                VirtualUser:Button1Up(Vector2.new(mouse.X, mouse.Y), workspace.CurrentCamera.CFrame)
+                VirtualInputManager:SendMouseButtonEvent(randomX, randomY, 0, false, game, 0)
             end)
-            task.wait(0.01) -- Общая задержка около 20 мс
+            task.wait(0.01) -- Суммарно ~20 мс
         else
             task.wait(0.1)
         end
     end
 end)
 
--- =========================================================================
--- ВКЛАДКА: INFO
--- =========================================================================
-local InfoTab = Window:Tab({
-    Title = "Info",
-    Icon = "info",
-})
-
-InfoTab:Paragraph({
-    Title = "Информация о скрипте",
-    Desc = "Создатель: BNDPA\nИгра: Mog Evolution (PlaceID: 92648272637932)\nИнтерфейс: WindUI",
-})
-
 Window:SelectTab(1)
-
