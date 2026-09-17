@@ -27,7 +27,6 @@ local function GetStat(key)
     return success and result or 0
 end
 
--- Регистрируем запуск универсального скрипта
 HitStat("total_hub")
 
 -- =========================================================================
@@ -55,7 +54,7 @@ local MainTab = Window:Tab({
 
 MainTab:Paragraph({
     Title = "Hoverly Script Loaded",
-    Desc = "Универсальный скрипт успешно активирован. Все основные модули готовы к работе.",
+    Desc = "Универсальный скрипт успешно активирован. Все модули (включая Fling и Anti-Fling) готовы к работе.",
 })
 
 local TotalPara = MainTab:Paragraph({
@@ -74,7 +73,7 @@ task.spawn(function()
 end)
 
 -- =========================================================================
--- ВКЛАДКА: COMBAT (Аимбот, Триггербот)
+-- ВКЛАДКА: COMBAT (Аимбот, Триггербот, Флинг)
 -- =========================================================================
 local CombatTab = Window:Tab({
     Title = "Combat",
@@ -84,6 +83,7 @@ local CombatTab = Window:Tab({
 local AimbotEnabled = false
 local TriggerbotEnabled = false
 local NoDelayEnabled = false
+local FlingEnabled = false
 
 CombatTab:Toggle({
     Title = "Аимбот (Ближайший игрок)",
@@ -102,38 +102,64 @@ CombatTab:Toggle({
 })
 
 CombatTab:Toggle({
-    Title = "No-Delay (Убрать задержку ударов/оружия)",
+    Title = "Флинг (Выброс игроков за карту)",
     Default = false,
     Callback = function(state)
-        NoDelayEnabled = state
-        -- Логика No-Delay (если поддерживается инструментом)
-        local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-        if tool and tool:FindFirstChild("Cooldown") then
-            -- Пример отключения стандартных кулдаунов, если они есть в инструменте
-            pcall(function() tool.Cooldown.Value = 0 end)
+        FlingEnabled = state
+        if FlingEnabled then
+            task.spawn(function()
+                local character = LocalPlayer.Character
+                local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+                if not rootPart then return end
+                
+                -- Сохраняем исходную скорость/вектор
+                local bav = Instance.new("BodyAngularVelocity")
+                bav.Name = "HoverlyFling"
+                bav.MaxTorque = Vector3.new(0, math.huge, 0)
+                bav.AngularVelocity = Vector3.new(0, 99999, 0) -- Бешеное вращение
+                bav.Parent = rootPart
+                
+                while FlingEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") do
+                    RunService.RenderStepped:Wait()
+                    -- Подходим к случайному игроку для флинга
+                    for _, player in ipairs(Players:GetPlayers()) do
+                        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                            local enemyRoot = player.Character.HumanoidRootPart
+                            rootPart.CFrame = enemyRoot.CFrame
+                            rootPart.Velocity = Vector3.new(99999, 99999, 99999)
+                        end
+                    end
+                end
+                
+                if bav then bav:Destroy() end
+            end)
         end
     end
 })
 
--- Логика Аимбота и Триггербота в реальном времени
+CombatTab:Toggle({
+    Title = "No-Delay (Убрать задержку ударов)",
+    Default = false,
+    Callback = function(state)
+        NoDelayEnabled = state
+    end
+})
+
+-- Логика Аимбота, Триггербота
 RunService.RenderStepped:Connect(function()
     if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
     
     local mouse = LocalPlayer:GetMouse()
     local target = mouse.Target
     
-    -- Триггербот (если курсор наведен на персонажа другого игрока)
     if TriggerbotEnabled and target and target.Parent then
         local enemyModel = target.Parent
         local humanoid = enemyModel:FindFirstChildOfClass("Humanoid")
         if humanoid and Players:GetPlayerFromCharacter(enemyModel) and Players:GetPlayerFromCharacter(enemyModel) ~= LocalPlayer then
-            pcall(function()
-                mouse1click() -- Симуляция клика мышкой
-            end)
+            pcall(function() mouse1click() end)
         end
     end
     
-    -- Аимбот (плавное наведение на голову ближайшего врага)
     if AimbotEnabled then
         local closestDist = math.huge
         local targetPart = nil
@@ -207,7 +233,7 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 -- =========================================================================
--- ВКЛАДКА: PLAYER (Скорость, Прыжок, Ноуклип, Флай, Инфинити Джамп)
+-- ВКЛАДКА: PLAYER (Скорость, Прыжок, Ноуклип, Флай, Анти-Флинг)
 -- =========================================================================
 local PlayerTab = Window:Tab({
     Title = "Player",
@@ -258,7 +284,6 @@ PlayerTab:Slider({
     end
 })
 
--- Применение скорости и прыжка
 RunService.Heartbeat:Connect(function()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
         local humanoid = LocalPlayer.Character.Humanoid
@@ -288,7 +313,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- Ноуклип (Хождение сквозь стены)
+-- Ноуклип
 local NoclipEnabled = false
 PlayerTab:Toggle({
     Title = "Ноуклип (Noclip)",
@@ -303,6 +328,30 @@ RunService.Stepped:Connect(function()
         for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- Анти-Флинг (Отключение коллизии с другими игроками)
+local AntiFlingEnabled = false
+PlayerTab:Toggle({
+    Title = "Анти-Флинг (Защита от чужих флингов)",
+    Default = false,
+    Callback = function(state)
+        AntiFlingEnabled = state
+    end
+})
+
+RunService.Stepped:Connect(function()
+    if AntiFlingEnabled then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                for _, part in ipairs(player.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
             end
         end
     end
@@ -376,7 +425,7 @@ local InfoTab = Window:Tab({
 
 InfoTab:Paragraph({
     Title = "Hoverly Script | Universal",
-    Desc = "Создатель: BNDPA\nИнтерфейс: WindUI\nСтатусы функций: Активны в реальном времени.",
+    Desc = "Создатель: BNDPA\nИнтерфейс: WindUI\nДобавлено: Fling & Anti-Fling модули.",
 })
 
 local LiveOnlinePara = InfoTab:Paragraph({
