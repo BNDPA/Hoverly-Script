@@ -53,26 +53,25 @@ local farmWaypointsList = {
 local farmWaypointNames = {"x2 appeal", "x3 appeal", "X5 appeal", "x8 appeal", "x12 appeal", "x18 appeal"}
 local selectedFarmWaypoint = "x2 appeal" -- По умолчанию
 
--- Список точек Auto Mog (добавлены Chad и AdamLite выше HTN)
+-- Список точек Auto Mog
 local mogWaypointsList = {
     ["Subhuman"] = {path = CFrame.new(-120.23, 5.96, -83.34), target = CFrame.new(-120.23, 10.64, -55.60)},
     ["Sub 3"]    = {path = CFrame.new(-160.72, 5.99, -83.82), target = CFrame.new(-160.68, 12.74, -54.65)},
-    ["Sub 5"]    = {path = CFrame.new(-237.70, 6.58, -82.61), target = CFrame.new(-200.39, 12.67, -55.68)},
+    ["Sub 5"]    = {path = CFrame.new(-199.07, 5.86, -83.55), target = CFrame.new(-200.39, 12.67, -55.68)},
     ["LTN"]      = {path = CFrame.new(-241.17, 5.99, -83.55), target = CFrame.new(-240.52, 12.46, -55.33)},
-    ["MTN"]      = {path = CFrame.new(-320.48, 6.78, -85.63), target = CFrame.new(-279.76, 10.83, -55.84)},
+    ["MTN"]      = {path = CFrame.new(-281.45, 5.99, -83.65), target = CFrame.new(-279.76, 10.83, -55.84)},
     ["HTN"]      = {path = CFrame.new(-325.83, 6.49, -83.75), target = CFrame.new(-319.91, 11.21, -52.39)},
-    ["Chad"]     = {path = CFrame.new(-237.70, 6.58, -82.61),357.78, 6.58, -70.35), target = CFrame.new(-360.33, 11.86, -52.86)},
-    ["AdamLite"] = {path = CFrame.new(-237.70, 6.58, -82.61),400.42, 6.78, -71.99), target = CFrame.new(-401.11, 10.57, -51.74)}
+    ["Chad"]     = {path = CFrame.new(-357.78, 6.58, -70.35), target = CFrame.new(-360.33, 11.86, -52.86)},
+    ["AdamLite"] = {path = CFrame.new(-400.42, 6.78, -71.99), target = CFrame.new(-401.11, 10.57, -51.74)}
 }
 
 local waypointNames = {"Subhuman", "Sub 3", "Sub 5", "LTN", "MTN", "HTN", "Chad", "AdamLite"}
-local selectedWaypointName = "Subhuman" -- По умолчанию
+local selectedWaypointName = "HTN" -- По умолчанию
 
 -- =========================================================================
 -- БЛОК AUTO FARM & CLICK
 -- =========================================================================
 
--- Выбор точки Auto Farm (Dropdown)
 FarmTab:Dropdown({
     Title = "Выбор точки Auto Farm",
     Values = farmWaypointNames,
@@ -85,7 +84,6 @@ FarmTab:Dropdown({
             Duration = 2
         })
         
-        -- Если фарм уже включен, плавно перелетаем на новую выбранную точку
         if AutoFarmEnabled then
             local character = LocalPlayer.Character
             if character and character:FindFirstChild("HumanoidRootPart") then
@@ -105,7 +103,6 @@ FarmTab:Dropdown({
     end
 })
 
--- Переключатель Auto Farm & Click
 FarmTab:Toggle({
     Title = "Auto Farm & Click (20 мс)",
     Default = false,
@@ -146,7 +143,6 @@ FarmTab:Toggle({
 -- БЛОК AUTO MOG
 -- =========================================================================
 
--- Выбор точки Auto Mog (Dropdown)
 FarmTab:Dropdown({
     Title = "Выбор точки Auto Mog",
     Values = waypointNames,
@@ -161,8 +157,8 @@ FarmTab:Dropdown({
     end
 })
 
--- Функция ходьбы до точки
-local function walkTo(humanoid, rootPart, targetPosition)
+-- Функция ходьбы с вилянием вправо по дороге и точным подходом к цели
+local function walkToWithPathSway(humanoid, rootPart, targetPosition, isFinalTarget)
     local reached = false
     local connection
     
@@ -171,15 +167,35 @@ local function walkTo(humanoid, rootPart, targetPosition)
         if connection then connection:Disconnect() end
     end)
     
-    humanoid:MoveTo(targetPosition)
-    
     local startTime = tick()
-    while not reached and AutoMogEnabled and (tick() - startTime < 20) do
-        if (rootPart.Position - targetPosition).Magnitude < 4 then
+    while not reached and AutoMogEnabled and (tick() - startTime < 25) do
+        local currentPos = rootPart.Position
+        local distanceToTarget = (currentPos - targetPosition).Magnitude
+        
+        if distanceToTarget < 3.5 then
+            reached = true
             break
         end
-        task.wait(0.2)
+        
+        -- Если это конечная точка, идем абсолютно точно к ней без виляния
+        if isFinalTarget then
+            humanoid:MoveTo(targetPosition)
+        else
+            -- Пока идем по промежуточному пути — веляем вправо (добавляем смещение по оси X)
+            local direction = (targetPosition - currentPos).Unit
+            local rightVector = direction:Cross(Vector3.new(0, 1, 0)).Unit
+            
+            -- Вычисляем слегка смещенную точку вправо (на 2 студа) для эффекта виляния
+            local swayedPosition = targetPosition + (rightVector * 2.0)
+            humanoid:MoveTo(swayedPosition)
+        end
+        
+        task.wait(0.25)
     end
+    
+    -- Финальное точное движение на позицию
+    humanoid:MoveTo(targetPosition)
+    task.wait(0.3)
     
     if connection then connection:Disconnect() end
 end
@@ -200,13 +216,13 @@ FarmTab:Toggle({
                     
                     local data = mogWaypointsList[selectedWaypointName]
                     if data then
-                        -- 1. Идем к начальной точке пути
-                        walkTo(humanoid, rootPart, data.path.Position)
+                        -- 1. Идем к начальной точке пути (с вилянием вправо)
+                        walkToWithPathSway(humanoid, rootPart, data.path.Position, false)
                         
                         if not AutoMogEnabled then break end
                         
-                        -- 2. Идем к целевой точке
-                        walkTo(humanoid, rootPart, data.target.Position)
+                        -- 2. Идем к целевой точке (точно в цель без виляния)
+                        walkToWithPathSway(humanoid, rootPart, data.target.Position, true)
                         
                         -- Пауза на точке
                         local stayTime = tick()
