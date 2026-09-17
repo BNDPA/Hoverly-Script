@@ -4,10 +4,9 @@ local HttpService = game:GetService("HttpService")
 
 -- =========================================================================
 -- КАК ДОБАВЛЯТЬ НОВЫЕ ИГРЫ:
--- Просто скопируйте любой блок ниже, вставьте в таблицу и измените:
--- Name — название игры, PlaceId — ID места (можно несколько), 
--- ScriptUrl — ссылка на ваш raw-скрипт с GitHub, Icon — иконка, 
--- KeyName — уникальное имя на английском для счетчика (без пробелов!).
+-- Скопируйте блок игры, вставьте в список и укажите свои данные:
+-- Name — название, PlaceId — ID места, ScriptUrl — ссылка с GitHub, 
+-- Icon — иконка, KeyName — уникальное слово на английском для счетчика.
 -- =========================================================================
 
 local Games = {
@@ -46,30 +45,19 @@ local Games = {
         Icon = "swords",
         KeyName = "bloxfruit"
     }
-    -- ЧТОБЫ ДОБАВИТЬ НОВУЮ ИГРУ, СКОПИРУЙТЕ БЛОК НИЖЕ И РАСКОММЕНТИРУЙТЕ ЕГО (УДАЛИТЕ "--"):
-    --[[
-    ,
-    {
-        Name = "Имя новой игры",
-        PlaceId = {АЙДИ_ИГРЫ},
-        ScriptUrl = "ССЫЛКА_НА_СКРИПТ_GITHUB",
-        Icon = "gamepad-2",
-        KeyName = "nomer_igry_eng"
-    }
-    ]]
 }
 
--- Имя вашего пространства на CountAPI (чтобы статистика была уникальной для вашего хаба)
+-- Имя вашего пространства на CountAPI
 local NAMESPACE = "hoverlyhub_bndpa_stats_2026"
 
--- Функция для увеличения счетчика на сервере (+1 игрок)
+-- Функция для увеличения счетчика на сервере (+1 при клике)
 local function HitStat(key)
     pcall(function()
         game:HttpGet("https://api.countapi.xyz/hit/" .. NAMESPACE .. "/" .. key, true)
     end)
 end
 
--- Функция для получения текущих цифр со счетчика
+-- Функция для получения значения со счетчика
 local function GetStat(key)
     local success, result = pcall(function()
         local response = game:HttpGet("https://api.countapi.xyz/get/" .. NAMESPACE .. "/" .. key, true)
@@ -79,15 +67,8 @@ local function GetStat(key)
     return success and result or 0
 end
 
--- Регистрируем запуск самого хаба (общего количества)
+-- Регистрируем запуск самого хаба
 HitStat("total_hub")
-
--- Загружаем реальную статистику для вкладки Info
-local totalOnline = GetStat("total_hub")
-local gameStats = {}
-for _, gameData in ipairs(Games) do
-    gameStats[gameData.KeyName] = GetStat(gameData.KeyName)
-end
 
 -- Функция авто-детекта текущей игры
 local function GetCurrentSupportedGame()
@@ -135,7 +116,6 @@ if detectedGame then
         Title = "Запустить скрипт для " .. detectedGame.Name,
         Desc = "Автоматический запуск найденного скрипта",
         Callback = function()
-            -- Прибавляем +1 к счетчику конкретной игры на сервере при клике
             HitStat(detectedGame.KeyName)
             
             WindUI:Notify({
@@ -181,7 +161,6 @@ for _, gameData in ipairs(Games) do
         Desc = "Загрузить " .. gameData.Name .. ".lua",
         Icon = gameData.Icon,
         Callback = function()
-            -- Прибавляем +1 к счетчику конкретной игры на сервере при клике
             HitStat(gameData.KeyName)
             
             WindUI:Notify({
@@ -210,7 +189,7 @@ for _, gameData in ipairs(Games) do
     })
 end
 
--- Вкладка "Info" (Реальная статистика с сервера навсегда)
+-- Вкладка "Info" (Реальное время с автообновлением)
 local InfoTab = Window:Tab({
     Title = "Info",
     Icon = "info",
@@ -218,24 +197,42 @@ local InfoTab = Window:Tab({
 
 InfoTab:Paragraph({
     Title = "Статистика использования",
-    Desc = "Цифры сохраняются на сервере автоматически и навсегда.",
+    Desc = "Данные на этой вкладке обновляются в реальном времени.",
 })
 
-InfoTab:Paragraph({
+-- Создаем параграфы для динамического обновления
+local TotalPara = InfoTab:Paragraph({
     Title = "Общий онлайн Hub",
-    Desc = "Всего запусков хаба: **" .. tostring(totalOnline) .. "** игроков",
+    Desc = "Загрузка...",
 })
 
-InfoTab:Paragraph({
+local GamesPara = InfoTab:Paragraph({
     Title = "Популярность игр",
-    Desc = (function()
+    Desc = "Загрузка...",
+})
+
+-- Фоновый поток для обновления статистики каждые 5 секунд
+task.spawn(function()
+    while true do
+        -- Получаем свежие данные со счетчика
+        local totalOnline = GetStat("total_hub")
+        
         local statsText = ""
         for _, gameData in ipairs(Games) do
-            local count = gameStats[gameData.KeyName] or 0
-            statsText = statsText .. "• " + gameData.Name + ": **" .. count .. "** запусков\n" -- исправлено на конкатенацию ниже
+            local count = GetStat(gameData.KeyName)
+            statsText = statsText .. "• " .. gameData.Name .. ": **" .. count .. "** запусков\n"
         end
-        return statsText
-    end)(),
-})
+        
+        -- Обновляем текст в интерфейсе WindUI
+        pcall(function()
+            TotalPara:SetDesc("Всего запусков хаба: **" .. tostring(totalOnline) .. "** чел.")
+            GamesPara:SetDesc(statsText)
+        end)
+        
+        -- Пауза 5 секунд перед следующим обновлением (чтобы не нагружать сеть)
+        task.wait(5)
+    end
+end)
 
 Window:SelectTab(1)
+
