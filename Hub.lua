@@ -59,7 +59,7 @@ local Games = {
     },
     {
         Name = "Build A Boat For Treasure",
-        PlaceId = {5374135, 358276339},
+        PlaceId = {537413528, 358276339},
         ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/babft.lua",
         Icon = "hammer",
         KeyName = "babft"
