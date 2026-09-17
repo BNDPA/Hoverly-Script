@@ -1,5 +1,13 @@
--- Загрузка библиотеки WindUI
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+-- Проверка и загрузка интерфейса WindUI
+local success, WindUI = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/main.lua"))()
+end)
+
+if not success or not WindUI then
+    warn("[Hoverly Error]: Не удалось загрузить WindUI! Ошибка: " .. tostring(WindUI))
+    return
+end
+
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
@@ -32,32 +40,68 @@ local FarmTab = Window:Tab({
 
 FarmTab:Paragraph({
     Title = "Авто фарм и модули",
-    Desc = "Автофарм, точная ходьба по точкам, клики (20 мс) и Auto Upgrade.",
+    Desc = "Автофарм с динамическими точками под Rebirth, точная ходьба, клики (20 мс) и Auto Upgrade.",
 })
 
 local AutoFarmEnabled = false
 local AutoMogEnabled = false
 local AutoUpgradeEnabled = false
-
 local farmOriginalCFrame = nil
 
--- Активная точка по умолчанию (начнем с Subhuman, но переключим легко)
-local selectedWaypointName = "HTN" -- Сразу поставим HTN для теста или заменим ниже
+-- Базовая точка по умолчанию (если количество ребиртов меньше 1)
+local defaultFarmTargetCFrame = CFrame.new(-36.45, 5.62, -124.53)
 
--- Точка для Auto Farm & Click
-local farmTargetCFrame = CFrame.new(-36.45, 5.62, -124.53)
+-- Функция динамического определения координаты фарма по количеству ребиртов / побед
+local function getDynamicFarmTarget()
+    local rebirths = 0
+    
+    pcall(function()
+        local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
+        if leaderstats then
+            for _, stat in ipairs(leaderstats:GetChildren()) do
+                local nameLower = string.lower(stat.Name)
+                if nameLower:find("rebirth") or nameLower:find("ребирт") or nameLower:find("win") or nameLower:find("побед") then
+                    if typeof(stat.Value) == "number" then
+                        rebirths = stat.Value
+                        break
+                    end
+                end
+            end
+        end
+    end)
+    
+    -- Проверка от большего к меньшему
+    if rebirths >= 15 then
+        return CFrame.new(8.51, 10.73, -151.30)
+    elseif rebirths >= 12 then
+        return CFrame.new(-5.64, 10.73, -156.28)
+    elseif rebirths >= 9 then
+        return CFrame.new(-55.49, 10.74, -157.24)
+    elseif rebirths >= 6 then
+        return CFrame.new(-69.21, 10.74, -151.10)
+    elseif rebirths >= 3 then
+        return CFrame.new(-68.88, 6.74, -120.92)
+    elseif rebirths >= 1 then
+        return CFrame.new(8.93, 7.74, -121.33)
+    else
+        return defaultFarmTargetCFrame
+    end
+end
 
--- Список всех 6 точек Auto Mog с координатами
+-- Список точек Auto Mog с обновленными первыми координатами (path)
 local mogWaypointsList = {
-    ["Subhuman"] = {path = CFrame.new(-118.04, 5.76, -68.29), target = CFrame.new(-120.23, 10.64, -55.60)},
-    ["Sub 3"]    = {path = CFrame.new(-161.32, 5.99, -68.92), target = CFrame.new(-160.68, 12.74, -54.65)},
-    ["Sub 5"]    = {path = CFrame.new(-201.85, 5.99, -69.97), target = CFrame.new(-200.39, 12.67, -55.68)},
-    ["LTN"]      = {path = CFrame.new(-240.50, 5.99, -67.94), target = CFrame.new(-240.52, 12.46, -55.33)},
-    ["MTN"]      = {path = CFrame.new(-278.81, 5.84, -68.89), target = CFrame.new(-279.76, 10.83, -55.84)},
-    ["HTN"]      = {path = CFrame.new(-318.92, 5.86, -69.44), target = CFrame.new(-319.91, 11.21, -52.39)}
+    ["Subhuman"] = {path = CFrame.new(-120.23, 5.96, -83.34), target = CFrame.new(-120.23, 10.64, -55.60)},
+    ["Sub 3"]    = {path = CFrame.new(-160.72, 5.99, -83.82), target = CFrame.new(-160.68, 12.74, -54.65)},
+    ["Sub 5"]    = {path = CFrame.new(-199.07, 5.86, -83.55), target = CFrame.new(-200.39, 12.67, -55.68)},
+    ["LTN"]      = {path = CFrame.new(-241.17, 5.99, -83.55), target = CFrame.new(-240.52, 12.46, -55.33)},
+    ["MTN"]      = {path = CFrame.new(-281.45, 5.99, -83.65), target = CFrame.new(-279.76, 10.83, -55.84)},
+    ["HTN"]      = {path = CFrame.new(-325.83, 6.49, -83.75), target = CFrame.new(-319.91, 11.21, -52.39)}
 }
 
--- 1. Auto Farm & Click (полет к точке + клики)
+local waypointNames = {"Subhuman", "Sub 3", "Sub 5", "LTN", "MTN", "HTN"}
+local selectedWaypointName = "HTN" -- По умолчанию
+
+-- 1. Auto Farm & Click (с учетом Rebirth)
 FarmTab:Toggle({
     Title = "Auto Farm & Click (20 мс)",
     Default = false,
@@ -70,13 +114,14 @@ FarmTab:Toggle({
             
             if AutoFarmEnabled then
                 farmOriginalCFrame = rootPart.CFrame
+                local currentFarmTarget = getDynamicFarmTarget()
                 
-                local distance = (rootPart.Position - farmTargetCFrame.Position).Magnitude
+                local distance = (rootPart.Position - currentFarmTarget.Position).Magnitude
                 local flightSpeed = 18
                 local flightTime = math.clamp(distance / flightSpeed, 1, 5)
                 
                 local tweenInfo = TweenInfo.new(flightTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = farmTargetCFrame})
+                local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = currentFarmTarget})
                 tween:Play()
             else
                 if farmOriginalCFrame then
@@ -93,53 +138,58 @@ FarmTab:Toggle({
     end
 })
 
--- Выбор точки через удобные кнопки (вместо глючного дропдауна)
-FarmTab:Paragraph({
-    Title = "Выбор точки для Auto Mog",
-    Desc = "Нажми на нужную точку, чтобы переключить скрипт на нее:",
+-- =========================================================================
+-- БЛОК AUTO MOG (Красивый селектор + тумблер ниже)
+-- =========================================================================
+
+-- Функция выбора авто мога (Dropdown)
+FarmTab:Dropdown({
+    Title = "Выбор точки Auto Mog",
+    Values = waypointNames,
+    Default = "HTN",
+    Callback = function(option)
+        selectedWaypointName = option
+        WindUI:Notify({
+            Title = "Auto Mog",
+            Content = "Выбрана точка: " .. option,
+            Duration = 2
+        })
+    end
 })
 
-for name, _ in pairs(mogWaypointsList) do
-    FarmTab:Button({
-        Title = "Выбрать точку: " .. name,
-        Callback = function()
-            selectedWaypointName = name
-            WindUI:Notify({
-                Title = "Auto Mog",
-                Content = "Успешно выбрана точка: " .. name,
-                Duration = 2
-            })
-            print("Скрипт переключен на точку:", name)
-        end
-    })
-end
-
--- Функция для ходьбы до целевой позиции пешком через MoveTo
-local function walkTo(humanoid, rootPart, targetPosition)
-    local reached = false
-    local connection
+-- Функция точного прямолинейного перемещения для Auto Mog (без уходов влево)
+local function moveToPrecise(rootPart, humanoid, targetCFrame)
+    if not rootPart or not humanoid then return end
     
-    connection = humanoid.MoveToFinished:Connect(function(isReached)
-        reached = true
-        if connection then connection:Disconnect() end
+    humanoid.PlatformStand = true
+    
+    local distance = (rootPart.Position - targetCFrame.Position).Magnitude
+    local speed = 16 
+    local duration = math.clamp(distance / speed, 0.2, 3)
+    
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+    tween:Play()
+    
+    local completed = false
+    local conn
+    conn = tween.Completed:Connect(function()
+        completed = true
+        if conn then conn:Disconnect() end
     end)
     
-    humanoid:MoveTo(targetPosition)
-    
     local startTime = tick()
-    while not reached and AutoMogEnabled and (tick() - startTime < 20) do
-        if (rootPart.Position - targetPosition).Magnitude < 4 then
-            break
-        end
-        task.wait(0.2)
+    while not completed and AutoMogEnabled and (tick() - startTime < (duration + 1)) do
+        task.wait(0.05)
     end
     
-    if connection then connection:Disconnect() end
+    humanoid.PlatformStand = false
+    rootPart.CFrame = targetCFrame
 end
 
--- 2. Auto Mog (ходьба от начала до конца + RemoteEvent)
+-- Включение Auto Mog (расположено сразу под селектором)
 FarmTab:Toggle({
-    Title = "Auto Mog (Ходьба по выбранной точке)",
+    Title = "Auto Mog (Включить фарм по точкам)",
     Default = false,
     Callback = function(state)
         AutoMogEnabled = state
@@ -151,18 +201,17 @@ FarmTab:Toggle({
                     local rootPart = character.HumanoidRootPart
                     local humanoid = character:FindFirstChildOfClass("Humanoid")
                     
-                    -- Берем данные строго по выбранному имени точки
                     local data = mogWaypointsList[selectedWaypointName]
                     if data then
-                        -- 1. Сначала идем пешком к началу (path)
-                        walkTo(humanoid, rootPart, data.path.Position)
+                        -- 1. Строго по прямой идем к начальной точке пути
+                        moveToPrecise(rootPart, humanoid, data.path)
                         
                         if not AutoMogEnabled then break end
                         
-                        -- 2. Затем идем пешком к концу (target)
-                        walkTo(humanoid, rootPart, data.target.Position)
+                        -- 2. Строго по прямой идем к целевой точке
+                        moveToPrecise(rootPart, humanoid, data.target)
                         
-                        -- Стоим на конечной точке перед повторным циклом
+                        -- Пауза на точке
                         local stayTime = tick()
                         while tick() - stayTime < 2 and AutoMogEnabled do
                             task.wait(0.1)
@@ -183,7 +232,7 @@ FarmTab:Toggle({
     end
 })
 
--- Ультра-быстрый кликер (20 мс) чуть левее центра экрана
+-- Ультра-быстрый кликер (20 мс)
 task.spawn(function()
     math.randomseed(tick())
     while true do
