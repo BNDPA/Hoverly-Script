@@ -1,7 +1,12 @@
 -- Загрузка WindUI
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
-local CORRECT_KEY = "HoverHub"
+-- Список доступных ключей и их ссылок для загрузки
+local VALID_KEYS = {
+    ["HoverHub"] = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/Hub.lua",
+    ["HoverHub.cc"] = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/BetaHub.lua"
+}
+
 local InputKey = ""
 
 -- Создание окна
@@ -36,7 +41,9 @@ Tab:Input({
 Tab:Button({
     Title = "Проверить ключ",
     Callback = function()
-        if InputKey == CORRECT_KEY then
+        local targetUrl = VALID_KEYS[InputKey]
+        
+        if targetUrl then
             WindUI:Notify({
                 Title = "Успешно!",
                 Content = "Ключ верный. Загрузка хаба...",
@@ -46,10 +53,10 @@ Tab:Button({
             -- Полностью удаляем окно Key System с экрана
             Window:Destroy()
             
-            -- Загружаем ваш основной хаб
+            -- Загружаем хаб, соответствующий введенному ключу
             task.spawn(function()
                 local success, err = pcall(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/Hub.lua"))()
+                    loadstring(game:HttpGet(targetUrl))()
                 end)
                 
                 if not success then
