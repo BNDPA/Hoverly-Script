@@ -54,7 +54,7 @@ local MainTab = Window:Tab({
 
 MainTab:Paragraph({
     Title = "Hoverly Script Loaded",
-    Desc = "Универсальный скрипт успешно активирован. Все модули (включая Fling и Anti-Fling) готовы к работе.",
+    Desc = "Универсальный скрипт успешно активирован. Вкладка Troll настроена.",
 })
 
 local TotalPara = MainTab:Paragraph({
@@ -73,7 +73,7 @@ task.spawn(function()
 end)
 
 -- =========================================================================
--- ВКЛАДКА: COMBAT (Аимбот, Триггербот, Флинг)
+-- ВКЛАДКА: COMBAT (Аимбот, Триггербот, No-Delay)
 -- =========================================================================
 local CombatTab = Window:Tab({
     Title = "Combat",
@@ -83,7 +83,6 @@ local CombatTab = Window:Tab({
 local AimbotEnabled = false
 local TriggerbotEnabled = false
 local NoDelayEnabled = false
-local FlingEnabled = false
 
 CombatTab:Toggle({
     Title = "Аимбот (Ближайший игрок)",
@@ -98,42 +97,6 @@ CombatTab:Toggle({
     Default = false,
     Callback = function(state)
         TriggerbotEnabled = state
-    end
-})
-
-CombatTab:Toggle({
-    Title = "Флинг (Выброс игроков за карту)",
-    Default = false,
-    Callback = function(state)
-        FlingEnabled = state
-        if FlingEnabled then
-            task.spawn(function()
-                local character = LocalPlayer.Character
-                local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-                if not rootPart then return end
-                
-                -- Сохраняем исходную скорость/вектор
-                local bav = Instance.new("BodyAngularVelocity")
-                bav.Name = "HoverlyFling"
-                bav.MaxTorque = Vector3.new(0, math.huge, 0)
-                bav.AngularVelocity = Vector3.new(0, 99999, 0) -- Бешеное вращение
-                bav.Parent = rootPart
-                
-                while FlingEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") do
-                    RunService.RenderStepped:Wait()
-                    -- Подходим к случайному игроку для флинга
-                    for _, player in ipairs(Players:GetPlayers()) do
-                        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                            local enemyRoot = player.Character.HumanoidRootPart
-                            rootPart.CFrame = enemyRoot.CFrame
-                            rootPart.Velocity = Vector3.new(99999, 99999, 99999)
-                        end
-                    end
-                end
-                
-                if bav then bav:Destroy() end
-            end)
-        end
     end
 })
 
@@ -233,14 +196,13 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 -- =========================================================================
--- ВКЛАДКА: PLAYER (Скорость, Прыжок, Ноуклип, Флай, Анти-Флинг)
+-- ВКЛАДКА: PLAYER (Скорость, Прыжок, Ноуклип, Флай)
 -- =========================================================================
 local PlayerTab = Window:Tab({
     Title = "Player",
     Icon = "user",
 })
 
--- Скорость
 local WalkspeedEnabled = false
 local CustomWalkspeed = 16
 
@@ -262,7 +224,6 @@ PlayerTab:Slider({
     end
 })
 
--- Сила прыжка
 local JumppowerEnabled = false
 local CustomJumppower = 50
 
@@ -297,7 +258,6 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Бесконечный прыжок
 local InfiniteJumpEnabled = false
 PlayerTab:Toggle({
     Title = "Бесконечный прыжок (Infinite Jump)",
@@ -313,7 +273,6 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- Ноуклип
 local NoclipEnabled = false
 PlayerTab:Toggle({
     Title = "Ноуклип (Noclip)",
@@ -333,31 +292,6 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- Анти-Флинг (Отключение коллизии с другими игроками)
-local AntiFlingEnabled = false
-PlayerTab:Toggle({
-    Title = "Анти-Флинг (Защита от чужих флингов)",
-    Default = false,
-    Callback = function(state)
-        AntiFlingEnabled = state
-    end
-})
-
-RunService.Stepped:Connect(function()
-    if AntiFlingEnabled then
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character then
-                for _, part in ipairs(player.Character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- Флай (Полет)
 local FlyEnabled = false
 local flySpeed = 50
 local bg, bv
@@ -416,6 +350,136 @@ PlayerTab:Slider({
 })
 
 -- =========================================================================
+-- ВКЛАДКА: TROLL (Флинг с выбором игрока, Анти-Флинг)
+-- =========================================================================
+local TrollTab = Window:Tab({
+    Title = "Troll",
+    Icon = "laugh",
+})
+
+-- Сбор списка игроков для дропдауна
+local function GetPlayerNames()
+    local names = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            table.insert(names, player.Name)
+        end
+    .end
+    if #names == 0 then table.insert(names, "Нет игроков") end
+    return names
+end
+
+local selectedTargetName = nil
+
+local PlayerDropdown = TrollTab:Dropdown({
+    Title = "Выбрать жертву для флинга",
+    Values = GetPlayerNames(),
+    Default = 1,
+    Callback = function(val)
+        selectedTargetName = val
+    end
+})
+
+-- Обновление списка игроков при подключении/отключении
+Players.PlayerAdded:Connect(function()
+    PlayerDropdown:Refresh(GetPlayerNames())
+end)
+Players.PlayerRemoving:Connect(function()
+    PlayerDropdown:Refresh(GetPlayerNames())
+end)
+
+TrollTab:Button({
+    Title = "Запустить Флинг на выбранного игрока (4 сек)",
+    Desc = "Выбросит игрока, вернет вас на исходную точку",
+    Callback = function()
+        if not selectedTargetName or selectedTargetName == "Нет игроков" then
+            WindUI:Notify({ Title = "Ошибка", Content = "Выберите игрока из списка!", Duration = 3 })
+            return
+        end
+        
+        local targetPlayer = Players:FindFirstChild(selectedTargetName)
+        if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            WindUI:Notify({ Title = "Ошибка", Content = "Игрок не найден или без персонажа!", Duration = 3 })
+            return
+        end
+        
+        local character = LocalPlayer.Character
+        if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+        local rootPart = character.HumanoidRootPart
+        
+        -- 1. Запоминаем исходную позицию
+        local originalCFrame = rootPart.CFrame
+        
+        WindUI:Notify({ Title = "Флинг активен", Content = "Атака игрока " .. selectedTargetName .. " (4 сек)...", Duration = 3 })
+        
+        -- 2. Создаем физику бешеного вращения
+        local bav = Instance.new("BodyAngularVelocity")
+        bav.Name = "HoverlyFling"
+        bav.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+        bav.AngularVelocity = Vector3.new(0, 99999, 0)
+        bav.Parent = rootPart
+        
+        local startTime = tick()
+        
+        -- 3. Крутимся и телепортируемся к цели ровно 4 секунды
+        local connection
+        connection = RunService.RenderStepped:Connect(function()
+            if tick() - startTime >= 4 then
+                connection:Disconnect()
+                return
+            end
+            
+            if targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local enemyRoot = targetPlayer.Character.HumanoidRootPart
+                rootPart.CFrame = enemyRoot.CFrame
+                rootPart.Velocity = Vector3.new(99999, 99999, 99999)
+                rootPart.RotVelocity = Vector3.new(99999, 99999, 99999)
+            end
+        end)
+        
+        -- Ждем окончания работы (4 секунды)
+        task.wait(4)
+        
+        -- Убираем вращение
+        if bav then bav:Destroy() end
+        
+        -- 4. Выравниваемся и возвращаемся на прежнее место
+        if character and character:FindFirstChild("Humanoid") then
+            character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end
+        rootPart.Velocity = Vector3.new(0, 0, 0)
+        rootPart.RotVelocity = Vector3.new(0, 0, 0)
+        rootPart.CFrame = originalCFrame
+        
+        WindUI:Notify({ Title = "Флинг завершен", Content = "Вы возвращены на исходную позицию.", Duration = 2 })
+    end
+})
+
+-- Анти-Флинг
+local AntiFlingEnabled = false
+TrollTab:Toggle({
+    Title = "Анти-Флинг (Отключение коллизии с игроками)",
+    Default = false,
+    Callback = function(state)
+        AntiFlingEnabled = state
+    end
+})
+
+RunService.Stepped:Connect(function()
+    if AntiFlingEnabled then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                for _, part in ipairs(player.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- =========================================================================
 -- ВКЛАДКА: INFO
 -- =========================================================================
 local InfoTab = Window:Tab({
@@ -425,7 +489,7 @@ local InfoTab = Window:Tab({
 
 InfoTab:Paragraph({
     Title = "Hoverly Script | Universal",
-    Desc = "Создатель: BNDPA\nИнтерфейс: WindUI\nДобавлено: Fling & Anti-Fling модули.",
+    Desc = "Создатель: BNDPA\nИнтерфейс: WindUI\nВкладка Troll: Настроена.",
 })
 
 local LiveOnlinePara = InfoTab:Paragraph({
@@ -444,3 +508,4 @@ task.spawn(function()
 end)
 
 Window:SelectTab(1)
+
