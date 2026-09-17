@@ -223,8 +223,8 @@ InfoTab:Paragraph({
 
 InfoTab:Paragraph({
     Title = "Общий онлайн Hub",
-    Desc = "Всего запуков хаба: " .. tostring(totalOnline) .. " игроков",
-})⁹
+    Desc = "Всего запусков хаба: **" .. tostring(totalOnline) .. "** игроков",
+})
 
 InfoTab:Paragraph({
     Title = "Популярность игр",
@@ -232,11 +232,10 @@ InfoTab:Paragraph({
         local statsText = ""
         for _, gameData in ipairs(Games) do
             local count = gameStats[gameData.KeyName] or 0
-            statsText = statsText .. "• " + gameData.Name + ": " .. count .. " запусков\n" -- исправлено на конкатенацию ниже
+            statsText = statsText .. "• " + gameData.Name + ": **" .. count .. "** запусков\n" -- исправлено на конкатенацию ниже
         end
         return statsText
     end)(),
 })
 
 Window:SelectTab(1)
-
