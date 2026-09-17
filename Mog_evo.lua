@@ -43,7 +43,7 @@ local farmOriginalCFrame = nil
 -- Точка для Auto Farm & Click
 local farmTargetCFrame = CFrame.new(-36.45, 5.62, -124.53)
 
--- Список точек Auto Mog с обновленными первыми координатами (path)
+-- Список точек Auto Mog
 local mogWaypointsList = {
     ["Subhuman"] = {path = CFrame.new(-120.23, 5.96, -83.34), target = CFrame.new(-120.23, 10.64, -55.60)},
     ["Sub 3"]    = {path = CFrame.new(-160.72, 5.99, -83.82), target = CFrame.new(-160.68, 12.74, -54.65)},
@@ -93,10 +93,10 @@ FarmTab:Toggle({
 })
 
 -- =========================================================================
--- БЛОК AUTO MOG (Красивый селектор + тумблер ниже)
+-- БЛОК AUTO MOG
 -- =========================================================================
 
--- Функция выбора авто мога (Dropdown)
+-- Выбор точки Auto Mog (Dropdown)
 FarmTab:Dropdown({
     Title = "Выбор точки Auto Mog",
     Values = waypointNames,
@@ -134,7 +134,7 @@ local function walkTo(humanoid, rootPart, targetPosition)
     if connection then connection:Disconnect() end
 end
 
--- Включение Auto Mog (расположено сразу под селектором)
+-- Включение Auto Mog
 FarmTab:Toggle({
     Title = "Auto Mog (Включить фарм по точкам)",
     Default = false,
@@ -262,6 +262,41 @@ task.spawn(function()
 end)
 
 -- =========================================================================
+-- ЗАЩИТА ОТ ДОНАТ-МЕНЮ И МАГАЗИНОВ ПРИ ВКЛЮЧЕННОМ AUTO MOG
+-- =========================================================================
+task.spawn(function()
+    while true do
+        if AutoMogEnabled then
+            pcall(function()
+                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if playerGui then
+                    for _, gui in ipairs(playerGui:GetDescendants()) do
+                        if gui:IsA("GuiObject") or gui:IsA("ScreenGui") then
+                            local nameLower = string.lower(gui.Name)
+                            if nameLower:find("shop") or 
+                               nameLower:find("donate") or 
+                               nameLower:find("purchase") or 
+                               nameLower:find("product") or 
+                               nameLower:find("gamepass") or 
+                               nameLower:find("store") or 
+                               nameLower:find("robux") then
+                                
+                                if gui.Visible then
+                                    gui.Visible = false
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+            task.wait(0.05)
+        else
+            task.wait(0.5)
+        end
+    end
+end)
+
+-- =========================================================================
 -- ВКЛАДКА: OTHER (Авто Ребирт)
 -- =========================================================================
 local OtherTab = Window:Tab({
@@ -309,4 +344,3 @@ task.spawn(function()
 end)
 
 Window:SelectTab(1)
-
