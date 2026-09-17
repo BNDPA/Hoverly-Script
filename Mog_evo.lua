@@ -1,13 +1,5 @@
--- Проверка и загрузка интерфейса WindUI
-local success, WindUI = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/main.lua"))()
-end)
-
-if not success or not WindUI then
-    warn("[Hoverly Error]: Не удалось загрузить WindUI! Ошибка: " .. tostring(WindUI))
-    return
-end
-
+-- Загрузка библиотеки WindUI
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
@@ -40,7 +32,7 @@ local FarmTab = Window:Tab({
 
 FarmTab:Paragraph({
     Title = "Авто фарм и модули",
-    Desc = "Автофарм с динамическими точками под Rebirth, точная ходьба, клики (20 мс) и Auto Upgrade.",
+    Desc = "Автофарм, точная ходьба по точкам, клики (20 мс) и Auto Upgrade.",
 })
 
 local AutoFarmEnabled = false
@@ -48,45 +40,8 @@ local AutoMogEnabled = false
 local AutoUpgradeEnabled = false
 local farmOriginalCFrame = nil
 
--- Базовая точка по умолчанию (если количество ребиртов меньше 1)
-local defaultFarmTargetCFrame = CFrame.new(-36.45, 5.62, -124.53)
-
--- Функция динамического определения координаты фарма по количеству ребиртов / побед
-local function getDynamicFarmTarget()
-    local rebirths = 0
-    
-    pcall(function()
-        local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
-        if leaderstats then
-            for _, stat in ipairs(leaderstats:GetChildren()) do
-                local nameLower = string.lower(stat.Name)
-                if nameLower:find("rebirth") or nameLower:find("ребирт") or nameLower:find("win") or nameLower:find("побед") then
-                    if typeof(stat.Value) == "number" then
-                        rebirths = stat.Value
-                        break
-                    end
-                end
-            end
-        end
-    end)
-    
-    -- Проверка от большего к меньшему
-    if rebirths >= 15 then
-        return CFrame.new(8.51, 10.73, -151.30)
-    elseif rebirths >= 12 then
-        return CFrame.new(-5.64, 10.73, -156.28)
-    elseif rebirths >= 9 then
-        return CFrame.new(-55.49, 10.74, -157.24)
-    elseif rebirths >= 6 then
-        return CFrame.new(-69.21, 10.74, -151.10)
-    elseif rebirths >= 3 then
-        return CFrame.new(-68.88, 6.74, -120.92)
-    elseif rebirths >= 1 then
-        return CFrame.new(8.93, 7.74, -121.33)
-    else
-        return defaultFarmTargetCFrame
-    end
-end
+-- Точка для Auto Farm & Click
+local farmTargetCFrame = CFrame.new(-36.45, 5.62, -124.53)
 
 -- Список точек Auto Mog с обновленными первыми координатами (path)
 local mogWaypointsList = {
@@ -101,7 +56,7 @@ local mogWaypointsList = {
 local waypointNames = {"Subhuman", "Sub 3", "Sub 5", "LTN", "MTN", "HTN"}
 local selectedWaypointName = "HTN" -- По умолчанию
 
--- 1. Auto Farm & Click (с учетом Rebirth)
+-- 1. Auto Farm & Click
 FarmTab:Toggle({
     Title = "Auto Farm & Click (20 мс)",
     Default = false,
@@ -114,14 +69,13 @@ FarmTab:Toggle({
             
             if AutoFarmEnabled then
                 farmOriginalCFrame = rootPart.CFrame
-                local currentFarmTarget = getDynamicFarmTarget()
                 
-                local distance = (rootPart.Position - currentFarmTarget.Position).Magnitude
+                local distance = (rootPart.Position - farmTargetCFrame.Position).Magnitude
                 local flightSpeed = 18
                 local flightTime = math.clamp(distance / flightSpeed, 1, 5)
                 
                 local tweenInfo = TweenInfo.new(flightTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = currentFarmTarget})
+                local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = farmTargetCFrame})
                 tween:Play()
             else
                 if farmOriginalCFrame then
@@ -157,34 +111,27 @@ FarmTab:Dropdown({
     end
 })
 
--- Функция точного прямолинейного перемещения для Auto Mog (без уходов влево)
-local function moveToPrecise(rootPart, humanoid, targetCFrame)
-    if not rootPart or not humanoid then return end
+-- Функция ходьбы до точки
+local function walkTo(humanoid, rootPart, targetPosition)
+    local reached = false
+    local connection
     
-    humanoid.PlatformStand = true
-    
-    local distance = (rootPart.Position - targetCFrame.Position).Magnitude
-    local speed = 16 
-    local duration = math.clamp(distance / speed, 0.2, 3)
-    
-    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
-    tween:Play()
-    
-    local completed = false
-    local conn
-    conn = tween.Completed:Connect(function()
-        completed = true
-        if conn then conn:Disconnect() end
+    connection = humanoid.MoveToFinished:Connect(function(isReached)
+        reached = true
+        if connection then connection:Disconnect() end
     end)
     
+    humanoid:MoveTo(targetPosition)
+    
     local startTime = tick()
-    while not completed and AutoMogEnabled and (tick() - startTime < (duration + 1)) do
-        task.wait(0.05)
+    while not reached and AutoMogEnabled and (tick() - startTime < 20) do
+        if (rootPart.Position - targetPosition).Magnitude < 4 then
+            break
+        end
+        task.wait(0.2)
     end
     
-    humanoid.PlatformStand = false
-    rootPart.CFrame = targetCFrame
+    if connection then connection:Disconnect() end
 end
 
 -- Включение Auto Mog (расположено сразу под селектором)
@@ -203,13 +150,13 @@ FarmTab:Toggle({
                     
                     local data = mogWaypointsList[selectedWaypointName]
                     if data then
-                        -- 1. Строго по прямой идем к начальной точке пути
-                        moveToPrecise(rootPart, humanoid, data.path)
+                        -- 1. Идем к начальной точке пути
+                        walkTo(humanoid, rootPart, data.path.Position)
                         
                         if not AutoMogEnabled then break end
                         
-                        -- 2. Строго по прямой идем к целевой точке
-                        moveToPrecise(rootPart, humanoid, data.target)
+                        -- 2. Идем к целевой точке
+                        walkTo(humanoid, rootPart, data.target.Position)
                         
                         -- Пауза на точке
                         local stayTime = tick()
