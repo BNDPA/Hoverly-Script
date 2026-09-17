@@ -2,79 +2,94 @@
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local HttpService = game:GetService("HttpService")
 
--- Ссылка на ваш JSONBin
-local STATS_API_URL = "https://api.jsonbin.io/v3/b/6aabdd33ffd5d1605311d743"
+-- =========================================================================
+-- КАК ДОБАВЛЯТЬ НОВЫЕ ИГРЫ:
+-- Просто скопируйте любой блок ниже, вставьте в таблицу и измените:
+-- Name — название игры, PlaceId — ID места (можно несколько), 
+-- ScriptUrl — ссылка на ваш raw-скрипт с GitHub, Icon — иконка, 
+-- KeyName — уникальное имя на английском для счетчика (без пробелов!).
+-- =========================================================================
 
--- Функция для получения реальной статистики из JSONBin
-local function FetchRealStats()
-    local success, result = pcall(function()
-        local response = game:HttpGet(STATS_API_URL, true)
-        return HttpService:JSONDecode(response)
-    end)
-    
-    -- Для JSONBin данные хранятся внутри поля .record
-    local data = (success and result and result.record) or nil
-    
-    if data then
-        return data
-    else
-        -- Заглушка на случай сбоя интернета, чтобы хаб не зависал
-        return {
-            Total = 0,
-            Games = {
-                ["DOORS"] = 0,
-                ["Lumber Tycoon 2"] = 0,
-                ["Natural Disaster Survival"] = 0,
-                ["Build A Boat For Treasure"] = 0,
-                ["Blox Fruit"] = 0
-            }
-        }
-    end
-end
-
--- Загружаем актуальную статистику при открытии хаба
-local liveStats = FetchRealStats()
-
--- База данных поддерживаемых игр под ваш репозиторий BNDPA/Hoverly-Script
 local Games = {
     {
         Name = "DOORS",
         PlaceId = {6516141723, 6839171747},
         ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/doors.lua",
         Icon = "door-closed",
-        KeyName = "DOORS"
+        KeyName = "doors"
     },
     {
         Name = "Lumber Tycoon 2",
         PlaceId = {13822889},
         ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/lt2.lua",
         Icon = "axe",
-        KeyName = "Lumber Tycoon 2"
+        KeyName = "lt2"
     },
     {
         Name = "Natural Disaster Survival",
         PlaceId = {189707},
         ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/nds.lua",
         Icon = "cloud-rain",
-        KeyName = "Natural Disaster Survival"
+        KeyName = "nds"
     },
     {
         Name = "Build A Boat For Treasure",
         PlaceId = {5374135, 358276339},
         ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/babft.lua",
         Icon = "hammer",
-        KeyName = "Build A Boat For Treasure"
+        KeyName = "babft"
     },
     {
         Name = "Blox Fruit",
         PlaceId = {2753915549, 4442272183, 7449423635},
         ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/bf.lua",
         Icon = "swords",
-        KeyName = "Blox Fruit"
+        KeyName = "bloxfruit"
     }
+    -- ЧТОБЫ ДОБАВИТЬ НОВУЮ ИГРУ, СКОПИРУЙТЕ БЛОК НИЖЕ И РАСКОММЕНТИРУЙТЕ ЕГО (УДАЛИТЕ "--"):
+    --[[
+    ,
+    {
+        Name = "Имя новой игры",
+        PlaceId = {АЙДИ_ИГРЫ},
+        ScriptUrl = "ССЫЛКА_НА_СКРИПТ_GITHUB",
+        Icon = "gamepad-2",
+        KeyName = "nomer_igry_eng"
+    }
+    ]]
 }
 
--- Функция для авто-детекта текущей игры
+-- Имя вашего пространства на CountAPI (чтобы статистика была уникальной для вашего хаба)
+local NAMESPACE = "hoverlyhub_bndpa_stats_2026"
+
+-- Функция для увеличения счетчика на сервере (+1 игрок)
+local function HitStat(key)
+    pcall(function()
+        game:HttpGet("https://api.countapi.xyz/hit/" .. NAMESPACE .. "/" .. key, true)
+    end)
+end
+
+-- Функция для получения текущих цифр со счетчика
+local function GetStat(key)
+    local success, result = pcall(function()
+        local response = game:HttpGet("https://api.countapi.xyz/get/" .. NAMESPACE .. "/" .. key, true)
+        local data = HttpService:JSONDecode(response)
+        return data and data.value or 0
+    end)
+    return success and result or 0
+end
+
+-- Регистрируем запуск самого хаба (общего количества)
+HitStat("total_hub")
+
+-- Загружаем реальную статистику для вкладки Info
+local totalOnline = GetStat("total_hub")
+local gameStats = {}
+for _, gameData in ipairs(Games) do
+    gameStats[gameData.KeyName] = GetStat(gameData.KeyName)
+end
+
+-- Функция авто-детекта текущей игры
 local function GetCurrentSupportedGame()
     local currentId = game.PlaceId
     for _, gameData in ipairs(Games) do
@@ -120,6 +135,9 @@ if detectedGame then
         Title = "Запустить скрипт для " .. detectedGame.Name,
         Desc = "Автоматический запуск найденного скрипта",
         Callback = function()
+            -- Прибавляем +1 к счетчику конкретной игры на сервере при клике
+            HitStat(detectedGame.KeyName)
+            
             WindUI:Notify({
                 Title = "Загрузка...",
                 Content = "Запуск модуля: " .. detectedGame.Name,
@@ -163,6 +181,9 @@ for _, gameData in ipairs(Games) do
         Desc = "Загрузить " .. gameData.Name .. ".lua",
         Icon = gameData.Icon,
         Callback = function()
+            -- Прибавляем +1 к счетчику конкретной игры на сервере при клике
+            HitStat(gameData.KeyName)
+            
             WindUI:Notify({
                 Title = "Загрузка...",
                 Content = "Загружается скрипт для " .. gameData.Name,
@@ -189,7 +210,7 @@ for _, gameData in ipairs(Games) do
     })
 end
 
--- Вкладка "Info" (Отображение данных из JSONBin)
+-- Вкладка "Info" (Реальная статистика с сервера навсегда)
 local InfoTab = Window:Tab({
     Title = "Info",
     Icon = "info",
@@ -197,30 +218,25 @@ local InfoTab = Window:Tab({
 
 InfoTab:Paragraph({
     Title = "Статистика использования",
-    Desc = "Данные подгружаются в реальном времени с вашего JSONBin.",
+    Desc = "Цифры сохраняются на сервере автоматически и навсегда.",
 })
 
 InfoTab:Paragraph({
     Title = "Общий онлайн Hub",
-    Desc = "Всего игроков: **" .. tostring(liveStats.Total or 0) .. "** чел.",
-})
+    Desc = "Всего запуков хаба: " .. tostring(totalOnline) .. " игроков",
+})⁹
 
 InfoTab:Paragraph({
-    Title = "Онлайн по отдельным играм",
+    Title = "Популярность игр",
     Desc = (function()
         local statsText = ""
-        if liveStats.Games then
-            for _, gameData in ipairs(Games) do
-                local count = liveStats.Games[gameData.KeyName] or 0
-                statsText = statsText .. "• " .. gameData.Name .. ": **" .. count .. "** игроков\n"
-            end
-        else
-            statsText = "Не удалось загрузить данные по играм."
+        for _, gameData in ipairs(Games) do
+            local count = gameStats[gameData.KeyName] or 0
+            statsText = statsText .. "• " + gameData.Name + ": " .. count .. " запусков\n" -- исправлено на конкатенацию ниже
         end
         return statsText
     end)(),
 })
 
--- Открываем первую вкладку по умолчанию
 Window:SelectTab(1)
 
