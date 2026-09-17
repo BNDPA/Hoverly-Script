@@ -3,13 +3,40 @@ local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footag
 local HttpService = game:GetService("HttpService")
 
 -- =========================================================================
--- КАК ДОБАВЛЯТЬ НОВЫЕ ИГРЫ:
--- Скопируйте блок игры, вставьте в список и укажите свои данные:
--- Name — название, PlaceId — ID места, ScriptUrl — ссылка с GitHub, 
--- Icon — иконка, KeyName — уникальное слово на английском для счетчика.
+-- НАСТРОЙКА СТАТИСТИКИ (COUNTAPI)
 -- =========================================================================
+local NAMESPACE = "hoverlyhub_bndpa_universal_2026"
+
+local function HitStat(key)
+    pcall(function()
+        game:HttpGet("https://api.countapi.xyz/hit/" .. NAMESPACE .. "/" .. key, true)
+    end)
+end
+
+local function GetStat(key)
+    local success, result = pcall(function()
+        local response = game:HttpGet("https://api.countapi.xyz/get/" .. NAMESPACE .. "/" .. key, true)
+        local data = HttpService:JSONDecode(response)
+        return data and data.value or 0
+    end)
+    return success and result or 0
+end
+
+HitStat("total_hub")
+
+-- =========================================================================
+-- БАЗА ДАННЫХ ИГР (Universal стоит на первом месте)
+-- =========================================================================
+local UniversalData = {
+    Name = "Universal",
+    PlaceId = {},
+    ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/universal.lua",
+    Icon = "globe",
+    KeyName = "universal"
+}
 
 local Games = {
+    UniversalData, -- Универсальный скрипт в самом верху
     {
         Name = "DOORS",
         PlaceId = {6516141723, 6839171747},
@@ -47,33 +74,11 @@ local Games = {
     }
 }
 
--- Имя вашего пространства на CountAPI
-local NAMESPACE = "hoverlyhub_bndpa_stats_2026"
-
--- Функция для увеличения счетчика на сервере (+1 при клике)
-local function HitStat(key)
-    pcall(function()
-        game:HttpGet("https://api.countapi.xyz/hit/" .. NAMESPACE .. "/" .. key, true)
-    end)
-end
-
--- Функция для получения значения со счетчика
-local function GetStat(key)
-    local success, result = pcall(function()
-        local response = game:HttpGet("https://api.countapi.xyz/get/" .. NAMESPACE .. "/" .. key, true)
-        local data = HttpService:JSONDecode(response)
-        return data and data.value or 0
-    end)
-    return success and result or 0
-end
-
--- Регистрируем запуск самого хаба
-HitStat("total_hub")
-
--- Функция авто-детекта текущей игры
+-- Функция для авто-детекта текущей игры (пропускаем Universal в поиске по ID)
 local function GetCurrentSupportedGame()
     local currentId = game.PlaceId
-    for _, gameData in ipairs(Games) do
+    for i = 2, #Games do -- Начинаем со 2-го элемента, т.к. 1-й это Universal
+        local gameData = Games[i]
         for _, id in ipairs(gameData.PlaceId) do
             if id == currentId then
                 return gameData
@@ -83,7 +88,9 @@ local function GetCurrentSupportedGame()
     return nil
 end
 
--- Создание окна через WindUI
+-- =========================================================================
+-- СОЗДАНИЕ ОКНА
+-- =========================================================================
 local Window = WindUI:CreateWindow({
     Title = "Hoverly Hub",
     Icon = "compass",
@@ -96,7 +103,9 @@ local Window = WindUI:CreateWindow({
     HasOutline = true,
 })
 
--- Вкладка "Главная" (Авто-детект)
+-- =========================================================================
+-- ВКЛАДКА: ГЛАВНАЯ (Авто-детект или Universal)
+-- =========================================================================
 local MainTab = Window:Tab({
     Title = "Главная",
     Icon = "home",
@@ -104,47 +113,69 @@ local MainTab = Window:Tab({
 
 local detectedGame = GetCurrentSupportedGame()
 
-MainTab:Paragraph({
-    Title = "Статус Авто-детекта",
-    Desc = detectedGame 
-        and ("Обнаружена игра: **" .. detectedGame.Name .. "**\nВы можете запустить скрипт одной кнопкой ниже.") 
-        or "Текущая игра не найдена в списке автоматического распознавания. Воспользуйтесь вкладкой «Выбор игры».",
-})
-
 if detectedGame then
+    MainTab:Paragraph({
+        Title = "Статус Авто-детекта",
+        Desc = "Обнаружена игра: **" .. detectedGame.Name .. "**\nВы можете запустить скрипт одной кнопкой ниже.",
+    })
+    
     MainTab:Button({
         Title = "Запустить скрипт для " .. detectedGame.Name,
         Desc = "Автоматический запуск найденного скрипта",
         Callback = function()
             HitStat(detectedGame.KeyName)
-            
             WindUI:Notify({
                 Title = "Загрузка...",
                 Content = "Запуск модуля: " .. detectedGame.Name,
                 Duration = 2,
             })
             
-            pcall(function()
-                Window:Destroy()
-            end)
+            pcall(function() Window:Destroy() end)
             
             local success, err = pcall(function()
                 loadstring(game:HttpGet(detectedGame.ScriptUrl))()
             end)
             
             if not success then
-                WindUI:Notify({
-                    Title = "Ошибка загрузки",
-                    Content = tostring(err),
-                    Duration = 5,
-                })
+                WindUI:Notify({ Title = "Ошибка загрузки", Content = tostring(err), Duration = 5 })
+                warn("Не удалось выполнить скрипт: " .. tostring(err))
+            end
+        end
+    })
+else
+    MainTab:Paragraph({
+        Title = "Игра не найдена в списке",
+        Desc = "Текущая игра не поддерживается напрямую. Вы можете запустить универсальный скрипт **Universal**.",
+    })
+    
+    MainTab:Button({
+        Title = "Запустить Universal",
+        Desc = "Запустить универсальный скрипт",
+        Callback = function()
+            HitStat(UniversalData.KeyName)
+            WindUI:Notify({
+                Title = "Загрузка...",
+                Content = "Запуск Universal",
+                Duration = 2,
+            })
+            
+            pcall(function() Window:Destroy() end)
+            
+            local success, err = pcall(function()
+                loadstring(game:HttpGet(UniversalData.ScriptUrl))()
+            end)
+            
+            if not success then
+                WindUI:Notify({ Title = "Ошибка загрузки", Content = tostring(err), Duration = 5 })
                 warn("Не удалось выполнить скрипт: " .. tostring(err))
             end
         end
     })
 end
 
--- Вкладка "Выбор игры" (Ручной запуск)
+-- =========================================================================
+-- ВКЛАДКА: ВЫБОР ИГР (С Universal вверху)
+-- =========================================================================
 local GamesTab = Window:Tab({
     Title = "Выбор игры",
     Icon = "list",
@@ -152,44 +183,39 @@ local GamesTab = Window:Tab({
 
 GamesTab:Paragraph({
     Title = "Список скриптов",
-    Desc = "Выберите нужную игру вручную при необходимости.",
+    Desc = "Выберите нужную игру или универсальный скрипт вручную.",
 })
 
 for _, gameData in ipairs(Games) do
     GamesTab:Button({
         Title = gameData.Name,
-        Desc = "Загрузить " .. gameData.Name .. ".lua",
+        Desc = gameData.Name == "Universal" and "Запустить универсальный скрипт" or ("Загрузить " .. gameData.Name .. ".lua"),
         Icon = gameData.Icon,
         Callback = function()
             HitStat(gameData.KeyName)
-            
             WindUI:Notify({
                 Title = "Загрузка...",
-                Content = "Загружается скрипт для " .. gameData.Name,
+                Content = "Загружается: " .. gameData.Name,
                 Duration = 2,
             })
             
-            pcall(function()
-                Window:Destroy()
-            end)
+            pcall(function() Window:Destroy() end)
             
             local success, err = pcall(function()
                 loadstring(game:HttpGet(gameData.ScriptUrl))()
             end)
             
             if not success then
-                WindUI:Notify({
-                    Title = "Ошибка загрузки",
-                    Content = tostring(err),
-                    Duration = 5,
-                })
+                WindUI:Notify({ Title = "Ошибка загрузки", Content = tostring(err), Duration = 5 })
                 warn("Не удалось выполнить скрипт: " .. tostring(err))
             end
         end
     })
 end
 
--- Вкладка "Info" (Реальное время с автообновлением)
+-- =========================================================================
+-- ВКЛАДКА: INFO (Реальное время)
+-- =========================================================================
 local InfoTab = Window:Tab({
     Title = "Info",
     Icon = "info",
@@ -200,21 +226,18 @@ InfoTab:Paragraph({
     Desc = "Данные на этой вкладке обновляются в реальном времени.",
 })
 
--- Создаем параграфы для динамического обновления
 local TotalPara = InfoTab:Paragraph({
     Title = "Общий онлайн Hub",
     Desc = "Загрузка...",
 })
 
 local GamesPara = InfoTab:Paragraph({
-    Title = "Популярность игр",
+    Title = "Популярность модулей",
     Desc = "Загрузка...",
 })
 
--- Фоновый поток для обновления статистики каждые 5 секунд
 task.spawn(function()
     while true do
-        -- Получаем свежие данные со счетчика
         local totalOnline = GetStat("total_hub")
         
         local statsText = ""
@@ -223,16 +246,13 @@ task.spawn(function()
             statsText = statsText .. "• " .. gameData.Name .. ": **" .. count .. "** запусков\n"
         end
         
-        -- Обновляем текст в интерфейсе WindUI
         pcall(function()
             TotalPara:SetDesc("Всего запусков хаба: **" .. tostring(totalOnline) .. "** чел.")
             GamesPara:SetDesc(statsText)
         end)
         
-        -- Пауза 5 секунд перед следующим обновлением (чтобы не нагружать сеть)
         task.wait(5)
     end
 end)
 
 Window:SelectTab(1)
-
