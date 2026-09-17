@@ -57,16 +57,16 @@ local selectedFarmWaypoint = "x2 appeal" -- По умолчанию
 local mogWaypointsList = {
     ["Subhuman"] = {path = CFrame.new(-120.23, 5.96, -83.34), target = CFrame.new(-120.23, 10.64, -55.60)},
     ["Sub 3"]    = {path = CFrame.new(-160.72, 5.99, -83.82), target = CFrame.new(-160.68, 12.74, -54.65)},
-    ["Sub 5"]    = {path = CFrame.new(-237.70, 6.58, -82.61)), target = CFrame.new(-200.39, 12.67, -55.68)},
+    ["Sub 5"]    = {path = CFrame.new(-237.70, 6.58, -82.61), target = CFrame.new(-200.39, 12.67, -55.68)},
     ["LTN"]      = {path = CFrame.new(-241.17, 5.99, -83.55), target = CFrame.new(-240.52, 12.46, -55.33)},
-    ["MTN"]      = {path = CFrame.new(-320.48, 6.78, -85.63)), target = CFrame.new(-279.76, 10.83, -55.84)},
+    ["MTN"]      = {path = CFrame.new(-320.48, 6.78, -85.63), target = CFrame.new(-279.76, 10.83, -55.84)},
     ["HTN"]      = {path = CFrame.new(-325.83, 6.49, -83.75), target = CFrame.new(-319.91, 11.21, -52.39)},
     ["Chad"]     = {path = CFrame.new(-357.78, 6.58, -70.35), target = CFrame.new(-360.33, 11.86, -52.86)},
     ["AdamLite"] = {path = CFrame.new(-400.42, 6.78, -71.99), target = CFrame.new(-401.11, 10.57, -51.74)}
 }
 
 local waypointNames = {"Subhuman", "Sub 3", "Sub 5", "LTN", "MTN", "HTN", "Chad", "AdamLite"}
-local selectedWaypointName = "HTN" -- По умолчанию
+local selectedWaypointName = "Subhuman" -- По умолчанию
 
 -- =========================================================================
 -- БЛОК AUTO FARM & CLICK
