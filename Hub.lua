@@ -25,7 +25,7 @@ end
 HitStat("total_hub")
 
 -- =========================================================================
--- БАЗА ДАННЫХ ИГР (Universal первый в списке для вкладки "Выбор игры")
+-- БАЗА ДАННЫХ ИГР (Universal первый, затем остальные игры)
 -- =========================================================================
 local UniversalData = {
     Name = "Universal",
@@ -36,6 +36,13 @@ local UniversalData = {
 }
 
 local Games = {
+    {
+        Name = "Tower of Hell",
+        PlaceId = {1962086868, 358276339},
+        ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/default_toh.lua",
+        Icon = "tower-control",
+        KeyName = "dtoh"
+    },
     {
         Name = "DOORS",
         PlaceId = {6516141723, 6839171747},
@@ -59,7 +66,7 @@ local Games = {
     },
     {
         Name = "Build A Boat For Treasure",
-        PlaceId = {537413528, 358276339},
+        PlaceId = {5374135},
         ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/babft.lua",
         Icon = "hammer",
         KeyName = "babft"
@@ -73,7 +80,7 @@ local Games = {
     }
 }
 
--- Функция для авто-детекта (теперь корректно проверяет все игры из таблицы)
+-- Функция для авто-детекта текущей игры
 local function GetCurrentSupportedGame()
     local currentId = game.PlaceId
     for _, gameData in ipairs(Games) do
@@ -172,7 +179,7 @@ else
 end
 
 -- =========================================================================
--- ВКЛАДКА: ВЫБОР ИГР (Universal в самом верху, затем остальные игры)
+-- ВКЛАДКА: ВЫБОР ИГР
 -- =========================================================================
 local GamesTab = Window:Tab({
     Title = "Выбор игры",
@@ -184,7 +191,7 @@ GamesTab:Paragraph({
     Desc = "Выберите нужную игру или универсальный скрипт вручную.",
 })
 
--- Сначала добавляем кнопку Universal в самый верх
+-- Кнопка Universal на первом месте
 GamesTab:Button({
     Title = UniversalData.Name,
     Desc = "Запустить универсальный скрипт",
@@ -210,11 +217,11 @@ GamesTab:Button({
     end
 })
 
--- Затем выводим остальные игры из списка
+-- Список остальных игр
 for _, gameData in ipairs(Games) do
     GamesTab:Button({
         Title = gameData.Name,
-        Desc = "Загрузить " .. gameData.Name .. ".lua",
+        Desc = "Загрузить " .. gameData.Name,
         Icon = gameData.Icon,
         Callback = function()
             HitStat(gameData.KeyName)
@@ -239,7 +246,7 @@ for _, gameData in ipairs(Games) do
 end
 
 -- =========================================================================
--- ВКЛАДКА: INFO (Реальное время)
+-- ВКЛАДКА: INFO
 -- =========================================================================
 local InfoTab = Window:Tab({
     Title = "Info",
@@ -265,7 +272,6 @@ task.spawn(function()
     while true do
         local totalOnline = GetStat("total_hub")
         
-        -- Собираем статистику для Universal и всех игр
         local statsText = "• Universal: **" .. GetStat(UniversalData.KeyName) .. "** запусков\n"
         for _, gameData in ipairs(Games) do
             local count = GetStat(gameData.KeyName)
@@ -282,4 +288,3 @@ task.spawn(function()
 end)
 
 Window:SelectTab(1)
-
