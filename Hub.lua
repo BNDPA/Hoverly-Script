@@ -58,6 +58,13 @@ local Games = {
         KeyName = "lt2"
     },
     {
+        Name = "Mog Evolution",
+        PlaceId = {92648272637932},
+        ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/Mog_evo.lua",
+        Icon = "hammer",
+        KeyName = "MogEvo"
+    },
+    {
         Name = "Natural Disaster Survival",
         PlaceId = {189707},
         ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/nds.lua",
