@@ -15,7 +15,7 @@ local Window = WindUI:CreateWindow({
     Icon = "zap",
     Author = "BNDPA",
     Folder = "HoverlyMogEvolution",
-    Size = UDim2.fromOffset(480, 320),
+    Size = UDim2.fromOffset(480, 340),
     Transparent = true,
     Theme = "Dark",
     SideBarWidth = 140,
@@ -31,14 +31,21 @@ local FarmTab = Window:Tab({
 })
 
 FarmTab:Paragraph({
-    Title = "Авто фарм, кликер и апгрейд",
-    Desc = "Авто-полет, рандомные клики (20 мс) и автоматическая покупка улучшений.",
+    Title = "Авто фарм и модули",
+    Desc = "Полет по точкам, рандомные клики (20 мс), Auto Mog и Auto Upgrade.",
 })
 
 local AutoFarmEnabled = false
+local AutoMogEnabled = false
 local AutoUpgradeEnabled = false
-local targetCFrame = CFrame.new(-36.45, 5.62, -124.53)
 local originalCFrame = nil
+
+-- Список точек для полета (можно легко добавлять новые в конец)
+local waypoints = {
+    CFrame.new(-133.83, 4.87, -75.42),
+    CFrame.new(-176.01, 4.87, -76.48),
+    CFrame.new(-218.25, 4.87, -76.05)
+}
 
 FarmTab:Toggle({
     Title = "Auto Farm & Click (20 мс)",
@@ -53,17 +60,28 @@ FarmTab:Toggle({
             if AutoFarmEnabled then
                 originalCFrame = rootPart.CFrame
                 
-                local distance = (rootPart.Position - targetCFrame.Position).Magnitude
-                local flightSpeed = 30
-                local flightTime = math.clamp(distance / flightSpeed, 0.5, 3)
-                
-                local tweenInfo = TweenInfo.new(flightTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-                local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
-                tween:Play()
+                -- Запускаем последовательный полет по точкам в отдельном потоке
+                task.spawn(function()
+                    for _, targetCFrame in ipairs(waypoints) do
+                        if not AutoFarmEnabled then break end
+                        
+                        local distance = (rootPart.Position - targetCFrame.Position).Magnitude
+                        local flightSpeed = 35
+                        local flightTime = math.clamp(distance / flightSpeed, 0.5, 3)
+                        
+                        local tweenInfo = TweenInfo.new(flightTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+                        local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+                        tween:Play()
+                        
+                        -- Ждем окончания полета до текущей точки
+                        tween.Completed:Wait()
+                    end
+                end)
             else
+                -- Возврат на исходную позицию при выключении
                 if originalCFrame then
                     local distance = (rootPart.Position - originalCFrame.Position).Magnitude
-                    local flightSpeed = 30
+                    local flightSpeed = 35
                     local flightTime = math.clamp(distance / flightSpeed, 0.5, 3)
                     
                     local tweenInfo = TweenInfo.new(flightTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
@@ -72,6 +90,14 @@ FarmTab:Toggle({
                 end
             end
         end
+    end
+})
+
+FarmTab:Toggle({
+    Title = "Auto Mog",
+    Default = false,
+    Callback = function(state)
+        AutoMogEnabled = state
     end
 })
 
@@ -107,12 +133,32 @@ task.spawn(function()
     end
 end)
 
--- Логика Auto Upgrade (Проверка побед и отправка запроса на покупку)
+-- Логика Auto Mog
+task.spawn(function()
+    while true do
+        if AutoMogEnabled then
+            pcall(function()
+                for _, descendant in ipairs(ReplicatedStorage:GetDescendants()) do
+                    if descendant:IsA("RemoteEvent") then
+                        local name = string.lower(descendant.Name)
+                        if name:find("mog") or name:find("train") or name:find("tap") or name:find("click") then
+                            descendant:FireServer()
+                        end
+                    end
+                end
+            end)
+            task.wait(0.5)
+        else
+            task.wait(1)
+        end
+    end
+end)
+
+-- Логика Auto Upgrade
 task.spawn(function()
     while true do
         if AutoUpgradeEnabled then
             pcall(function()
-                -- Ищем значение побед (Wins) в leaderstats или игроке
                 local winsVal = nil
                 local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
                 if leaderstats then
@@ -125,13 +171,11 @@ task.spawn(function()
                     end
                 end
                 
-                -- Если нашли победы, можем спамить попытки покупки улучшений/инструментов
-                if winsVal and typeof(winsVal.Value) == "number" and winsVal.Value > 0 then
+                if winsVal and typeof(winsVal.Value) == "number" and winsVal.Value >= 0 then
                     for _, descendant in ipairs(ReplicatedStorage:GetDescendants()) do
                         if descendant:IsA("RemoteEvent") then
                             local name = string.lower(descendant.Name)
                             if name:find("buy") or name:find("upgrade") or name:find("tool") or name:find("purchase") then
-                                -- Пытаемся купить следующие аргументы (часто передается ID или строка)
                                 descendant:FireServer()
                                 descendant:FireServer("Best")
                                 descendant:FireServer(1)
@@ -140,7 +184,7 @@ task.spawn(function()
                     end
                 end
             end)
-            task.wait(2) -- Проверяем и покупаем каждые 2 секунды
+            task.wait(2)
         else
             task.wait(1)
         end
