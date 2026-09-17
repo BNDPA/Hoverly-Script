@@ -32,7 +32,7 @@ local FarmTab = Window:Tab({
 
 FarmTab:Paragraph({
     Title = "Авто фарм и модули",
-    Desc = "Автофарм, точная ходьба по точкам, клики (20 мс) и Auto Upgrade.",
+    Desc = "Автофарм по выбору точек, клики (20 мс), Auto Mog и Auto Upgrade.",
 })
 
 local AutoFarmEnabled = false
@@ -40,23 +40,72 @@ local AutoMogEnabled = false
 local AutoUpgradeEnabled = false
 local farmOriginalCFrame = nil
 
--- Точка для Auto Farm & Click
-local farmTargetCFrame = CFrame.new(-36.45, 5.62, -124.53)
+-- Список точек Auto Farm & Click
+local farmWaypointsList = {
+    ["x2 appeal"]  = CFrame.new(-68.88, 6.74, -120.92),
+    ["x3 appeal"]  = CFrame.new(8.93, 7.74, -121.33),
+    ["X5 appeal"]  = CFrame.new(-69.21, 10.74, -151.10),
+    ["x8 appeal"]  = CFrame.new(-55.49, 10.74, -157.24),
+    ["x12 appeal"] = CFrame.new(-5.64, 10.73, -156.28),
+    ["x18 appeal"] = CFrame.new(8.51, 10.73, -151.30)
+}
 
--- Список точек Auto Mog
+local farmWaypointNames = {"x2 appeal", "x3 appeal", "X5 appeal", "x8 appeal", "x12 appeal", "x18 appeal"}
+local selectedFarmWaypoint = "x2 appeal" -- По умолчанию
+
+-- Список точек Auto Mog (добавлены Chad и AdamLite выше HTN)
 local mogWaypointsList = {
     ["Subhuman"] = {path = CFrame.new(-120.23, 5.96, -83.34), target = CFrame.new(-120.23, 10.64, -55.60)},
     ["Sub 3"]    = {path = CFrame.new(-160.72, 5.99, -83.82), target = CFrame.new(-160.68, 12.74, -54.65)},
-    ["Sub 5"]    = {path = CFrame.new(-199.07, 5.86, -83.55), target = CFrame.new(-200.39, 12.67, -55.68)},
+    ["Sub 5"]    = {path = CFrame.new(-237.70, 6.58, -82.61)), target = CFrame.new(-200.39, 12.67, -55.68)},
     ["LTN"]      = {path = CFrame.new(-241.17, 5.99, -83.55), target = CFrame.new(-240.52, 12.46, -55.33)},
-    ["MTN"]      = {path = CFrame.new(-281.45, 5.99, -83.65), target = CFrame.new(-279.76, 10.83, -55.84)},
-    ["HTN"]      = {path = CFrame.new(-325.83, 6.49, -83.75), target = CFrame.new(-319.91, 11.21, -52.39)}
+    ["MTN"]      = {path = CFrame.new(-320.48, 6.78, -85.63)), target = CFrame.new(-279.76, 10.83, -55.84)},
+    ["HTN"]      = {path = CFrame.new(-325.83, 6.49, -83.75), target = CFrame.new(-319.91, 11.21, -52.39)},
+    ["Chad"]     = {path = CFrame.new(-357.78, 6.58, -70.35), target = CFrame.new(-360.33, 11.86, -52.86)},
+    ["AdamLite"] = {path = CFrame.new(-400.42, 6.78, -71.99), target = CFrame.new(-401.11, 10.57, -51.74)}
 }
 
-local waypointNames = {"Subhuman", "Sub 3", "Sub 5", "LTN", "MTN", "HTN"}
+local waypointNames = {"Subhuman", "Sub 3", "Sub 5", "LTN", "MTN", "HTN", "Chad", "AdamLite"}
 local selectedWaypointName = "HTN" -- По умолчанию
 
--- 1. Auto Farm & Click
+-- =========================================================================
+-- БЛОК AUTO FARM & CLICK
+-- =========================================================================
+
+-- Выбор точки Auto Farm (Dropdown)
+FarmTab:Dropdown({
+    Title = "Выбор точки Auto Farm",
+    Values = farmWaypointNames,
+    Default = "x2 appeal",
+    Callback = function(option)
+        selectedFarmWaypoint = option
+        WindUI:Notify({
+            Title = "Auto Farm",
+            Content = "Выбрана точка: " .. option,
+            Duration = 2
+        })
+        
+        -- Если фарм уже включен, плавно перелетаем на новую выбранную точку
+        if AutoFarmEnabled then
+            local character = LocalPlayer.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local rootPart = character.HumanoidRootPart
+                local targetCFrame = farmWaypointsList[selectedFarmWaypoint]
+                if targetCFrame then
+                    local distance = (rootPart.Position - targetCFrame.Position).Magnitude
+                    local flightSpeed = 18
+                    local flightTime = math.clamp(distance / flightSpeed, 1, 5)
+                    
+                    local tweenInfo = TweenInfo.new(flightTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+                    tween:Play()
+                end
+            end
+        end
+    end
+})
+
+-- Переключатель Auto Farm & Click
 FarmTab:Toggle({
     Title = "Auto Farm & Click (20 мс)",
     Default = false,
@@ -70,12 +119,13 @@ FarmTab:Toggle({
             if AutoFarmEnabled then
                 farmOriginalCFrame = rootPart.CFrame
                 
-                local distance = (rootPart.Position - farmTargetCFrame.Position).Magnitude
+                local targetCFrame = farmWaypointsList[selectedFarmWaypoint] or farmWaypointsList["x2 appeal"]
+                local distance = (rootPart.Position - targetCFrame.Position).Magnitude
                 local flightSpeed = 18
                 local flightTime = math.clamp(distance / flightSpeed, 1, 5)
                 
                 local tweenInfo = TweenInfo.new(flightTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = farmTargetCFrame})
+                local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
                 tween:Play()
             else
                 if farmOriginalCFrame then
@@ -344,3 +394,4 @@ task.spawn(function()
 end)
 
 Window:SelectTab(1)
+
