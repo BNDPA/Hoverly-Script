@@ -32,11 +32,11 @@ local FarmTab = Window:Tab({
 
 FarmTab:Paragraph({
     Title = "Авто фарм и модули",
-    Desc = "Автофарм по выбору точек, клики (20 мс), Auto Mog и Auto Upgrade.",
+    Desc = "Автофарм по выбору точек, клики (20 мс), Auto Win и Auto Upgrade.",
 })
 
 local AutoFarmEnabled = false
-local AutoMogEnabled = false
+local AutoWinEnabled = false
 local AutoUpgradeEnabled = false
 local farmOriginalCFrame = nil
 
@@ -53,20 +53,21 @@ local farmWaypointsList = {
 local farmWaypointNames = {"x2 appeal", "x3 appeal", "X5 appeal", "x8 appeal", "x12 appeal", "x18 appeal"}
 local selectedFarmWaypoint = "x2 appeal" -- По умолчанию
 
--- Список точек Auto Mog (с обновленными именами и новой точкой AdamLite)
-local mogWaypointsList = {
-    ["Subhuman"] = {path = CFrame.new(-120.23, 5.96, -83.34), target = CFrame.new(-120.23, 10.64, -55.60)},
-    ["Sub 3"]    = {path = CFrame.new(-160.72, 5.99, -83.82), target = CFrame.new(-160.68, 12.74, -54.65)},
-    ["Sub 5"]    = {path = CFrame.new(-199.07, 5.86, -83.55), target = CFrame.new(-200.39, 12.67, -55.68)},
-    ["LTN"]      = {path = CFrame.new(-241.17, 5.99, -83.55), target = CFrame.new(-240.52, 12.46, -55.33)},
-    ["MTN"]      = {path = CFrame.new(-281.45, 5.99, -83.65), target = CFrame.new(-279.76, 10.83, -55.84)},
-    ["HTN"]      = {path = CFrame.new(-325.83, 6.49, -83.75), target = CFrame.new(-319.91, 11.21, -52.39)},
-    ["ChadLite"] = {path = CFrame.new(-357.78, 6.58, -70.35), target = CFrame.new(-360.33, 11.86, -52.86)},
-    ["Chad"]     = {path = CFrame.new(-400.42, 6.78, -71.99), target = CFrame.new(-401.11, 10.57, -51.74)},
-    ["AdamLite"] = {path = CFrame.new(-440.43, 6.96, -74.95), target = CFrame.new(-440.64, 14.14, -54.98)}
+-- Список точек Auto Win
+local winWaypointsList = {
+    ["Subhuman"]  = {path = CFrame.new(-120.23, 5.96, -83.34), target = CFrame.new(-120.23, 10.64, -55.60)},
+    ["Sub 3"]     = {path = CFrame.new(-160.72, 5.99, -83.82), target = CFrame.new(-160.68, 12.74, -54.65)},
+    ["Sub 5"]     = {path = CFrame.new(-199.07, 5.86, -83.55), target = CFrame.new(-200.39, 12.67, -55.68)},
+    ["LTN"]       = {path = CFrame.new(-241.17, 5.99, -83.55), target = CFrame.new(-240.52, 12.46, -55.33)},
+    ["MTN"]       = {path = CFrame.new(-281.45, 5.99, -83.65), target = CFrame.new(-279.76, 10.83, -55.84)},
+    ["HTN"]       = {path = CFrame.new(-325.83, 6.49, -83.75), target = CFrame.new(-319.91, 11.21, -52.39)},
+    ["ChadLite"]  = {path = CFrame.new(-357.78, 6.58, -70.35), target = CFrame.new(-360.33, 11.86, -52.86)},
+    ["Chad"]      = {path = CFrame.new(-400.42, 6.78, -71.99), target = CFrame.new(-401.11, 10.57, -51.74)},
+    ["AdamLite"]  = {path = CFrame.new(-440.43, 6.96, -74.95), target = CFrame.new(-440.64, 14.14, -54.98)},
+    ["True Adam"] = {path = CFrame.new(-480.72, 6.98, -75.87), target = CFrame.new(-481.61, 12.42, -52.87)}
 }
 
-local waypointNames = {"Subhuman", "Sub 3", "Sub 5", "LTN", "MTN", "HTN", "ChadLite", "Chad", "AdamLite"}
+local waypointNames = {"Subhuman", "Sub 3", "Sub 5", "LTN", "MTN", "HTN", "ChadLite", "Chad", "AdamLite", "True Adam"}
 local selectedWaypointName = "HTN" -- По умолчанию
 
 -- =========================================================================
@@ -141,17 +142,17 @@ FarmTab:Toggle({
 })
 
 -- =========================================================================
--- БЛОК AUTO MOG
+-- БЛОК AUTO WIN
 -- =========================================================================
 
 FarmTab:Dropdown({
-    Title = "Выбор точки Auto Mog",
+    Title = "Выбор точки Auto Win",
     Values = waypointNames,
     Default = "HTN",
     Callback = function(option)
         selectedWaypointName = option
         WindUI:Notify({
-            Title = "Auto Mog",
+            Title = "Auto Win",
             Content = "Выбрана точка: " .. option,
             Duration = 2
         })
@@ -169,7 +170,7 @@ local function walkToWithPathSway(humanoid, rootPart, targetPosition, isFinalTar
     end)
     
     local startTime = tick()
-    while not reached and AutoMogEnabled and (tick() - startTime < 25) do
+    while not reached and AutoWinEnabled and (tick() - startTime < 25) do
         local currentPos = rootPart.Position
         local distanceToTarget = (currentPos - targetPosition).Magnitude
         
@@ -201,33 +202,33 @@ local function walkToWithPathSway(humanoid, rootPart, targetPosition, isFinalTar
     if connection then connection:Disconnect() end
 end
 
--- Включение Auto Mog
+-- Включение Auto Win
 FarmTab:Toggle({
-    Title = "Auto Mog (Включить фарм по точкам)",
+    Title = "Auto Win (Включить фарм по точкам)",
     Default = false,
     Callback = function(state)
-        AutoMogEnabled = state
+        AutoWinEnabled = state
         
         task.spawn(function()
-            while AutoMogEnabled do
+            while AutoWinEnabled do
                 local character = LocalPlayer.Character
                 if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChildOfClass("Humanoid") then
                     local rootPart = character.HumanoidRootPart
                     local humanoid = character:FindFirstChildOfClass("Humanoid")
                     
-                    local data = mogWaypointsList[selectedWaypointName]
+                    local data = winWaypointsList[selectedWaypointName]
                     if data then
                         -- 1. Идем к начальной точке пути (с вилянием вправо)
                         walkToWithPathSway(humanoid, rootPart, data.path.Position, false)
                         
-                        if not AutoMogEnabled then break end
+                        if not AutoWinEnabled then break end
                         
                         -- 2. Идем к целевой точке (точно в цель без виляния)
                         walkToWithPathSway(humanoid, rootPart, data.target.Position, true)
                         
                         -- Пауза на точке
                         local stayTime = tick()
-                        while tick() - stayTime < 2 and AutoMogEnabled do
+                        while tick() - stayTime < 2 and AutoWinEnabled do
                             task.wait(0.1)
                         end
                     end
@@ -270,15 +271,15 @@ task.spawn(function()
     end
 end)
 
--- Логика Auto Mog (отправка RemoteEvent)
+-- Логика Auto Win (отправка RemoteEvent)
 task.spawn(function()
     while true do
-        if AutoMogEnabled then
+        if AutoWinEnabled then
             pcall(function()
                 for _, descendant in ipairs(ReplicatedStorage:GetDescendants()) do
                     if descendant:IsA("RemoteEvent") then
                         local name = string.lower(descendant.Name)
-                        if name:find("mog") or name:find("train") or name:find("tap") or name:find("click") then
+                        if name:find("mog") or name:find("train") or name:find("tap") or name:find("click") or name:find("win") then
                             descendant:FireServer()
                         end
                     end
@@ -329,11 +330,11 @@ task.spawn(function()
 end)
 
 -- =========================================================================
--- ЗАЩИТА ОТ ДОНАТ-МЕНЮ И МАГАЗИНОВ ПРИ ВКЛЮЧЕННОМ AUTO MOG
+-- ЗАЩИТА ОТ ДОНАТ-МЕНЮ И МАГАЗИНОВ ПРИ ВКЛЮЧЕННОМ AUTO WIN
 -- =========================================================================
 task.spawn(function()
     while true do
-        if AutoMogEnabled then
+        if AutoWinEnabled then
             pcall(function()
                 local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
                 if playerGui then
