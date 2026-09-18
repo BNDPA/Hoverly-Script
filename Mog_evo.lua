@@ -53,7 +53,7 @@ local farmWaypointsList = {
 local farmWaypointNames = {"x2 appeal", "x3 appeal", "X5 appeal", "x8 appeal", "x12 appeal", "x18 appeal"}
 local selectedFarmWaypoint = "x2 appeal" -- По умолчанию
 
--- Список точек Auto Win (с новыми уровнями True Adam)
+-- Список точек Auto Win (с добавлением 54m и 120m аппелов)
 local winWaypointsList = {
     ["Subhuman"]             = {path = CFrame.new(-120.23, 5.96, -83.34), target = CFrame.new(-120.23, 10.64, -55.60)},
     ["Sub 3"]                = {path = CFrame.new(-160.72, 5.99, -83.82), target = CFrame.new(-160.68, 12.74, -54.65)},
@@ -67,12 +67,15 @@ local winWaypointsList = {
     ["True Adam (2.6m appeals)"] = {path = CFrame.new(-480.72, 6.98, -75.87), target = CFrame.new(-481.61, 12.42, -52.87)},
     ["True Adam (12m appeals)"]  = {path = CFrame.new(-518.18, 6.78, -75.07), target = CFrame.new(-520.59, 10.59, -51.46)},
     ["True Adam (23m appeals)"]  = {path = CFrame.new(-559.53, 6.90, -75.14), target = CFrame.new(-559.60, 11.05, -51.17)},
-    ["True Adam (42m appeals)"]  = {path = CFrame.new(-600.51, 6.95, -72.85), target = CFrame.new(-601.40, 12.22, -52.48)}
+    ["True Adam (42m appeals)"]  = {path = CFrame.new(-600.51, 6.95, -72.85), target = CFrame.new(-601.40, 12.22, -52.48)},
+    ["True Adam (54m appeals)"]  = {path = CFrame.new(-641.54, 6.98, -71.48), target = CFrame.new(-641.64, 10.04, -49.30)},
+    ["True Adam (120m appeals)"] = {path = CFrame.new(-680.81, 6.98, -71.36), target = CFrame.new(-680.70, 12.46, -51.83)}
 }
 
 local waypointNames = {
     "Subhuman", "Sub 3", "Sub 5", "LTN", "MTN", "HTN", "ChadLite", "Chad", "AdamLite", 
-    "True Adam (2.6m appeals)", "True Adam (12m appeals)", "True Adam (23m appeals)", "True Adam (42m appeals)"
+    "True Adam (2.6m appeals)", "True Adam (12m appeals)", "True Adam (23m appeals)", 
+    "True Adam (42m appeals)", "True Adam (54m appeals)", "True Adam (120m appeals)"
 }
 local selectedWaypointName = "HTN" -- По умолчанию
 
@@ -373,7 +376,7 @@ end)
 -- =========================================================================
 -- ВКЛАДКА: OTHER (Авто Ребирт)
 -- =========================================================================
-OtherTab = Window:Tab({
+local OtherTab = Window:Tab({
     Title = "Other",
     Icon = "settings",
 })
