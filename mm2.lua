@@ -1,6 +1,6 @@
 --[[
     Project: Hoverly Script | Murder Mystery 2
-    UI Library: Wind UI (Final Version with Instant No-Delay Auto Farm)
+    UI Library: Wind UI (Instant Seamless Flight Auto Farm)
 ]]
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
@@ -29,7 +29,7 @@ local WorldTab = Window:Tab({ Title = "World Settings", Icon = "sun" })
 
 local espEnabled = false
 local autoFarmEnabled = false
-local autoFarmSpeed = 100 -- Увеличена скорость по умолчанию для мгновенного сбора
+local autoFarmSpeed = 85
 local smartAimbotEnabled = false
 local killAuraEnabled = false
 local antiFlingEnabled = false
@@ -144,10 +144,10 @@ Players.PlayerAdded:Connect(function(p)
     p.CharacterRemoving:Connect(function() removeESP(p) end)
 end)
 
--- === 2. TAB: AUTO FARM & COINS (Мгновенный переход к монетам) ===
+-- === 2. TAB: AUTO FARM & COINS (Без задержек между монетами) ===
 FarmTab:Toggle({
-    Title = "Auto Farm Coins (Instant, No Delay)",
-    Description = "Flies smoothly from one coin to another without stopping.",
+    Title = "Auto Farm Coins (With Noclip)",
+    Description = "Smoothly flies continuously to coins without pauses.",
     Value = false,
     Callback = function(state)
         autoFarmEnabled = state
@@ -164,12 +164,12 @@ FarmTab:Toggle({
 
 FarmTab:Dropdown({
     Title = "Farm Speed",
-    Values = {"Fast", "Ultra Fast", "Instant"},
-    Default = "Ultra Fast",
+    Values = {"Slow", "Medium", "Fast"},
+    Default = "Fast",
     Callback = function(selected)
-        if selected == "Fast" then autoFarmSpeed = 85
-        elseif selected == "Ultra Fast" then autoFarmSpeed = 130
-        elseif selected == "Instant" then autoFarmSpeed = 220 end
+        if selected == "Slow" then autoFarmSpeed = 40
+        elseif selected == "Medium" then autoFarmSpeed = 60
+        elseif selected == "Fast" then autoFarmSpeed = 85 end
     end
 })
 
@@ -203,7 +203,6 @@ RunService.Heartbeat:Connect(function(dt)
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     
     if hrp and hum and hum.Health > 0 then
-        -- Включаем ноклип для полета сквозь препятствия
         for _, part in ipairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = false
@@ -213,14 +212,12 @@ RunService.Heartbeat:Connect(function(dt)
         local targetCoin = getClosestCoin()
         if targetCoin and targetCoin.Parent then
             local targetPos = targetCoin.Position
-            local currentPos = hrp.Position
             
-            -- Сбрасываем физику, чтобы персонаж не падал и не застревал
             hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
             hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
             
-            -- Плавное и быстрое перемещение к монете без остановки (моментально переключается на следующую)
-            hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(targetPos), math.clamp(dt * (autoFarmSpeed / 5), 0.1, 1))
+            -- Непрерывный полет без ожидания и пауз при приближении
+            hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(targetPos), math.min(dt * (autoFarmSpeed / 8), 1))
         end
     end
 end)
@@ -624,7 +621,6 @@ WorldTab:Toggle({
 
 WindUI:Notify({
     Title = "Hoverly Script Loaded",
-    Content = "Instant Auto Farm & No-Delay coin collecting enabled!",
+    Content = "Continuous flight without coin delays activated!",
     Duration = 4
 })
-
