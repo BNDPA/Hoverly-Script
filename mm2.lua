@@ -1,6 +1,6 @@
 --[[
     Project: Hoverly Script | Murder Mystery 2
-    UI Library: Wind UI (Final Version with Auto Shoot, Keybind & Advanced Kill All)
+    UI Library: Wind UI (Final Version with Instant No-Delay Auto Farm)
 ]]
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
@@ -29,11 +29,11 @@ local WorldTab = Window:Tab({ Title = "World Settings", Icon = "sun" })
 
 local espEnabled = false
 local autoFarmEnabled = false
-local autoFarmSpeed = 85
+local autoFarmSpeed = 100 -- Увеличена скорость по умолчанию для мгновенного сбора
 local smartAimbotEnabled = false
 local killAuraEnabled = false
 local antiFlingEnabled = false
-local autoShootKey = Enum.KeyCode.E -- Дефолтный бинд (клавиша E)
+local autoShootKey = Enum.KeyCode.E
 local highlights = {}
 local nameTags = {}
 
@@ -144,10 +144,10 @@ Players.PlayerAdded:Connect(function(p)
     p.CharacterRemoving:Connect(function() removeESP(p) end)
 end)
 
--- === 2. TAB: AUTO FARM & COINS ===
+-- === 2. TAB: AUTO FARM & COINS (Мгновенный переход к монетам) ===
 FarmTab:Toggle({
-    Title = "Auto Farm Coins (With Noclip)",
-    Description = "Smoothly flies directly to coins without obstacles.",
+    Title = "Auto Farm Coins (Instant, No Delay)",
+    Description = "Flies smoothly from one coin to another without stopping.",
     Value = false,
     Callback = function(state)
         autoFarmEnabled = state
@@ -164,12 +164,12 @@ FarmTab:Toggle({
 
 FarmTab:Dropdown({
     Title = "Farm Speed",
-    Values = {"Slow", "Medium", "Fast"},
-    Default = "Fast",
+    Values = {"Fast", "Ultra Fast", "Instant"},
+    Default = "Ultra Fast",
     Callback = function(selected)
-        if selected == "Slow" then autoFarmSpeed = 40
-        elseif selected == "Medium" then autoFarmSpeed = 60
-        elseif selected == "Fast" then autoFarmSpeed = 85 end
+        if selected == "Fast" then autoFarmSpeed = 85
+        elseif selected == "Ultra Fast" then autoFarmSpeed = 130
+        elseif selected == "Instant" then autoFarmSpeed = 220 end
     end
 })
 
@@ -203,6 +203,7 @@ RunService.Heartbeat:Connect(function(dt)
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     
     if hrp and hum and hum.Health > 0 then
+        -- Включаем ноклип для полета сквозь препятствия
         for _, part in ipairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = false
@@ -213,13 +214,13 @@ RunService.Heartbeat:Connect(function(dt)
         if targetCoin and targetCoin.Parent then
             local targetPos = targetCoin.Position
             local currentPos = hrp.Position
-            local distance = (currentPos - targetPos).Magnitude
             
-            if distance > 1 then
-                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(targetPos), math.min(dt * (autoFarmSpeed / 10), 1))
-            end
+            -- Сбрасываем физику, чтобы персонаж не падал и не застревал
+            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            
+            -- Плавное и быстрое перемещение к монете без остановки (моментально переключается на следующую)
+            hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(targetPos), math.clamp(dt * (autoFarmSpeed / 5), 0.1, 1))
         end
     end
 end)
@@ -243,7 +244,6 @@ CombatTab:Toggle({
     end
 })
 
--- Функция авто-выстрела за Шерифа
 local function shootMurderer()
     local myRole = getRole(LocalPlayer)
     if myRole ~= "Sheriff" then
@@ -313,7 +313,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Усовершенствованный Kill All с 12 быстрыми кликами, обнулением кулдауна и хитбоксами на 1000
 local clickCount = 0
 local lastClickTime = 0
 
@@ -364,7 +363,6 @@ CombatTab:Button({
 
                     if knife.Parent ~= myChar then myHum:EquipTool(knife) end
 
-                    -- Убираем задержку удара (кулдаун) ножа
                     pcall(function()
                         for _, v in pairs(knife:GetDescendants()) do
                             if v:IsA("NumberValue") or v:IsA("IntValue") then
@@ -384,7 +382,6 @@ CombatTab:Button({
                     local originalSizes = {}
 
                     task.spawn(function()
-                        -- Увеличиваем хитбоксы всех врагов на 1000
                         for _, player in ipairs(Players:GetPlayers()) do
                             if player ~= LocalPlayer and player.Character then
                                 local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
@@ -397,7 +394,6 @@ CombatTab:Button({
                             end
                         end
 
-                        -- Убийство всех целей
                         for _, player in ipairs(Players:GetPlayers()) do
                             if player ~= LocalPlayer and player.Character then
                                 local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
@@ -420,7 +416,6 @@ CombatTab:Button({
                             end
                         end
 
-                        -- Возвращаем хитбоксы в исходное состояние
                         for player, origSize in pairs(originalSizes) do
                             if player and player.Character then
                                 local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
@@ -629,6 +624,7 @@ WorldTab:Toggle({
 
 WindUI:Notify({
     Title = "Hoverly Script Loaded",
-    Content = "All features & Advanced Kill All updated successfully!",
+    Content = "Instant Auto Farm & No-Delay coin collecting enabled!",
     Duration = 4
 })
+
