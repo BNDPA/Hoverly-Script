@@ -37,6 +37,13 @@ local UniversalData = {
 
 local Games = {
     {
+        Name = "Murder Mystery 2",
+        PlaceId = {142823291},
+        ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/mm2.lua",
+        Icon = "knife", -- Или любая другая иконка, подходящая под стиль
+        KeyName = "mm2"
+    },
+    {
         Name = "Tower of Hell",
         PlaceId = {1962086868, 358276339},
         ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/default_toh.lua",
@@ -295,3 +302,4 @@ task.spawn(function()
 end)
 
 Window:SelectTab(1)
+
