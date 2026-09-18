@@ -122,18 +122,20 @@ local function LoadScriptWithLogo(keyName, scriptUrl, gameName)
     
     pcall(function() Window:Destroy() end)
     
-    -- Запускаем логотип асинхронно, чтобы он не блокировал таймер ожидания
+    -- Запускаем логотип в изолированном потоке, чтобы он не блокировал таймер
     task.spawn(function()
-        local logoSuccess, logoErr = pcall(function()
-            loadstring(game:HttpGet(LogoUrl))()
+        pcall(function()
+            local logoCode = game:HttpGet(LogoUrl)
+            local fn, err = loadstring(logoCode)
+            if fn then
+                fn()
+            else
+                warn("Ошибка компиляции логотипа: " .. tostring(err))
+            end
         end)
-        
-        if not logoSuccess then
-            warn("Не удалось загрузить Logo_ascii_art.lua: " .. tostring(logoErr))
-        end
     end)
     
-    -- Честное ожидание 3 секунды перед загрузкой скрипта игры
+    -- Гарантированная пауза в 3 секунды
     task.wait(3)
     
     -- Загружаем основной скрипт игры
@@ -278,3 +280,4 @@ task.spawn(function()
 end)
 
 Window:SelectTab(1)
+
