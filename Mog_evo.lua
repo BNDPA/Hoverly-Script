@@ -53,21 +53,27 @@ local farmWaypointsList = {
 local farmWaypointNames = {"x2 appeal", "x3 appeal", "X5 appeal", "x8 appeal", "x12 appeal", "x18 appeal"}
 local selectedFarmWaypoint = "x2 appeal" -- По умолчанию
 
--- Список точек Auto Win
+-- Список точек Auto Win (с новыми уровнями True Adam)
 local winWaypointsList = {
-    ["Subhuman"]  = {path = CFrame.new(-120.23, 5.96, -83.34), target = CFrame.new(-120.23, 10.64, -55.60)},
-    ["Sub 3"]     = {path = CFrame.new(-160.72, 5.99, -83.82), target = CFrame.new(-160.68, 12.74, -54.65)},
-    ["Sub 5"]     = {path = CFrame.new(-199.07, 5.86, -83.55), target = CFrame.new(-200.39, 12.67, -55.68)},
-    ["LTN"]       = {path = CFrame.new(-241.17, 5.99, -83.55), target = CFrame.new(-240.52, 12.46, -55.33)},
-    ["MTN"]       = {path = CFrame.new(-281.45, 5.99, -83.65), target = CFrame.new(-279.76, 10.83, -55.84)},
-    ["HTN"]       = {path = CFrame.new(-325.83, 6.49, -83.75), target = CFrame.new(-319.91, 11.21, -52.39)},
-    ["ChadLite"]  = {path = CFrame.new(-357.78, 6.58, -70.35), target = CFrame.new(-360.33, 11.86, -52.86)},
-    ["Chad"]      = {path = CFrame.new(-400.42, 6.78, -71.99), target = CFrame.new(-401.11, 10.57, -51.74)},
-    ["AdamLite"]  = {path = CFrame.new(-440.43, 6.96, -74.95), target = CFrame.new(-440.64, 14.14, -54.98)},
-    ["True Adam"] = {path = CFrame.new(-480.72, 6.98, -75.87), target = CFrame.new(-481.61, 12.42, -52.87)}
+    ["Subhuman"]             = {path = CFrame.new(-120.23, 5.96, -83.34), target = CFrame.new(-120.23, 10.64, -55.60)},
+    ["Sub 3"]                = {path = CFrame.new(-160.72, 5.99, -83.82), target = CFrame.new(-160.68, 12.74, -54.65)},
+    ["Sub 5"]                = {path = CFrame.new(-199.07, 5.86, -83.55), target = CFrame.new(-200.39, 12.67, -55.68)},
+    ["LTN"]                  = {path = CFrame.new(-241.17, 5.99, -83.55), target = CFrame.new(-240.52, 12.46, -55.33)},
+    ["MTN"]                  = {path = CFrame.new(-281.45, 5.99, -83.65), target = CFrame.new(-279.76, 10.83, -55.84)},
+    ["HTN"]                  = {path = CFrame.new(-325.83, 6.49, -83.75), target = CFrame.new(-319.91, 11.21, -52.39)},
+    ["ChadLite"]             = {path = CFrame.new(-357.78, 6.58, -70.35), target = CFrame.new(-360.33, 11.86, -52.86)},
+    ["Chad"]                 = {path = CFrame.new(-400.42, 6.78, -71.99), target = CFrame.new(-401.11, 10.57, -51.74)},
+    ["AdamLite"]             = {path = CFrame.new(-440.43, 6.96, -74.95), target = CFrame.new(-440.64, 14.14, -54.98)},
+    ["True Adam (2.6m appeals)"] = {path = CFrame.new(-480.72, 6.98, -75.87), target = CFrame.new(-481.61, 12.42, -52.87)},
+    ["True Adam (12m appeals)"]  = {path = CFrame.new(-518.18, 6.78, -75.07), target = CFrame.new(-520.59, 10.59, -51.46)},
+    ["True Adam (23m appeals)"]  = {path = CFrame.new(-559.53, 6.90, -75.14), target = CFrame.new(-559.60, 11.05, -51.17)},
+    ["True Adam (42m appeals)"]  = {path = CFrame.new(-600.51, 6.95, -72.85), target = CFrame.new(-601.40, 12.22, -52.48)}
 }
 
-local waypointNames = {"Subhuman", "Sub 3", "Sub 5", "LTN", "MTN", "HTN", "ChadLite", "Chad", "AdamLite", "True Adam"}
+local waypointNames = {
+    "Subhuman", "Sub 3", "Sub 5", "LTN", "MTN", "HTN", "ChadLite", "Chad", "AdamLite", 
+    "True Adam (2.6m appeals)", "True Adam (12m appeals)", "True Adam (23m appeals)", "True Adam (42m appeals)"
+}
 local selectedWaypointName = "HTN" -- По умолчанию
 
 -- =========================================================================
@@ -367,7 +373,7 @@ end)
 -- =========================================================================
 -- ВКЛАДКА: OTHER (Авто Ребирт)
 -- =========================================================================
-local OtherTab = Window:Tab({
+OtherTab = Window:Tab({
     Title = "Other",
     Icon = "settings",
 })
