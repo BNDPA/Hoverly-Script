@@ -108,7 +108,7 @@ local function GetCurrentSupportedGame()
 end
 
 -- =========================================================================
--- УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ЗАГРУЗКИ СКРИПТОВ С ЗАДЕРЖКОЙ
+-- УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ЗАГРУЗКИ СКРИПТОВ С ЛОГОТИПОМ И ЗАДЕРЖКОЙ
 -- =========================================================================
 local LogoUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/Logo_ascii_art.lua"
 
@@ -122,19 +122,21 @@ local function LoadScriptWithLogo(keyName, scriptUrl, gameName)
     
     pcall(function() Window:Destroy() end)
     
-    -- 1. Загружаем логотип
-    local logoSuccess, logoErr = pcall(function()
-        loadstring(game:HttpGet(LogoUrl))()
+    -- Запускаем логотип асинхронно, чтобы он не блокировал таймер ожидания
+    task.spawn(function()
+        local logoSuccess, logoErr = pcall(function()
+            loadstring(game:HttpGet(LogoUrl))()
+        end)
+        
+        if not logoSuccess then
+            warn("Не удалось загрузить Logo_ascii_art.lua: " .. tostring(logoErr))
+        end
     end)
     
-    if not logoSuccess then
-        warn("Не удалось загрузить Logo_ascii_art.lua: " .. tostring(logoErr))
-    end
-    
-    -- 2. Ждем 3 секунды перед запуском основного скрипта
+    -- Честное ожидание 3 секунды перед загрузкой скрипта игры
     task.wait(3)
     
-    -- 3. Загружаем основной скрипт игры
+    -- Загружаем основной скрипт игры
     local success, err = pcall(function()
         loadstring(game:HttpGet(scriptUrl))()
     end)
@@ -276,4 +278,3 @@ task.spawn(function()
 end)
 
 Window:SelectTab(1)
-
