@@ -108,6 +108,41 @@ local function GetCurrentSupportedGame()
 end
 
 -- =========================================================================
+-- УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ЗАГРУЗКИ СКРИПТОВ
+-- =========================================================================
+local LogoUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/Logo_ascii_art.lua"
+
+local function LoadScriptWithLogo(keyName, scriptUrl, gameName)
+    HitStat(keyName)
+    WindUI:Notify({
+        Title = "Загрузка...",
+        Content = "Вывод логотипа и запуск: " .. gameName,
+        Duration = 2,
+    })
+    
+    pcall(function() Window:Destroy() end)
+    
+    -- 1. Сначала загружаем логотип
+    local logoSuccess, logoErr = pcall(function()
+        loadstring(game:HttpGet(LogoUrl))()
+    end)
+    
+    if not logoSuccess then
+        warn("Не удалось загрузить Logo_ascii_art.lua: " .. tostring(logoErr))
+    end
+    
+    -- 2. Затем загружаем основной скрипт игры
+    local success, err = pcall(function()
+        loadstring(game:HttpGet(scriptUrl))()
+    end)
+    
+    if not success then
+        WindUI:Notify({ Title = "Ошибка загрузки скрипта", Content = tostring(err), Duration = 5 })
+        warn("Не удалось выполнить скрипт: " .. tostring(err))
+    end
+end
+
+-- =========================================================================
 -- СОЗДАНИЕ ОКНА
 -- =========================================================================
 local Window = WindUI:CreateWindow({
@@ -142,23 +177,7 @@ if detectedGame then
         Title = "Запустить скрипт для " .. detectedGame.Name,
         Desc = "Автоматический запуск найденного скрипта",
         Callback = function()
-            HitStat(detectedGame.KeyName)
-            WindUI:Notify({
-                Title = "Загрузка...",
-                Content = "Запуск модуля: " .. detectedGame.Name,
-                Duration = 2,
-            })
-            
-            pcall(function() Window:Destroy() end)
-            
-            local success, err = pcall(function()
-                loadstring(game:HttpGet(detectedGame.ScriptUrl))()
-            end)
-            
-            if not success then
-                WindUI:Notify({ Title = "Ошибка загрузки", Content = tostring(err), Duration = 5 })
-                warn("Не удалось выполнить скрипт: " .. tostring(err))
-            end
+            LoadScriptWithLogo(detectedGame.KeyName, detectedGame.ScriptUrl, detectedGame.Name)
         end
     })
 else
@@ -171,23 +190,7 @@ else
         Title = "Запустить Universal",
         Desc = "Запустить универсальный скрипт",
         Callback = function()
-            HitStat(UniversalData.KeyName)
-            WindUI:Notify({
-                Title = "Загрузка...",
-                Content = "Запуск Universal",
-                Duration = 2,
-            })
-            
-            pcall(function() Window:Destroy() end)
-            
-            local success, err = pcall(function()
-                loadstring(game:HttpGet(UniversalData.ScriptUrl))()
-            end)
-            
-            if not success then
-                WindUI:Notify({ Title = "Ошибка загрузки", Content = tostring(err), Duration = 5 })
-                warn("Не удалось выполнить скрипт: " .. tostring(err))
-            end
+            LoadScriptWithLogo(UniversalData.KeyName, UniversalData.ScriptUrl, UniversalData.Name)
         end
     })
 end
@@ -211,23 +214,7 @@ GamesTab:Button({
     Desc = "Запустить универсальный скрипт",
     Icon = UniversalData.Icon,
     Callback = function()
-        HitStat(UniversalData.KeyName)
-        WindUI:Notify({
-            Title = "Загрузка...",
-            Content = "Загружается: " .. UniversalData.Name,
-            Duration = 2,
-        })
-        
-        pcall(function() Window:Destroy() end)
-        
-        local success, err = pcall(function()
-            loadstring(game:HttpGet(UniversalData.ScriptUrl))()
-        end)
-        
-        if not success then
-            WindUI:Notify({ Title = "Ошибка загрузки", Content = tostring(err), Duration = 5 })
-            warn("Не удалось выполнить скрипт: " .. tostring(err))
-        end
+        LoadScriptWithLogo(UniversalData.KeyName, UniversalData.ScriptUrl, UniversalData.Name)
     end
 })
 
@@ -238,23 +225,7 @@ for _, gameData in ipairs(Games) do
         Desc = "Загрузить " .. gameData.Name,
         Icon = gameData.Icon,
         Callback = function()
-            HitStat(gameData.KeyName)
-            WindUI:Notify({
-                Title = "Загрузка...",
-                Content = "Загружается: " .. gameData.Name,
-                Duration = 2,
-            })
-            
-            pcall(function() Window:Destroy() end)
-            
-            local success, err = pcall(function()
-                loadstring(game:HttpGet(gameData.ScriptUrl))()
-            end)
-            
-            if not success then
-                WindUI:Notify({ Title = "Ошибка загрузки", Content = tostring(err), Duration = 5 })
-                warn("Не удалось выполнить скрипт: " .. tostring(err))
-            end
+            LoadScriptWithLogo(gameData.KeyName, gameData.ScriptUrl, gameData.Name)
         end
     })
 end
@@ -302,4 +273,5 @@ task.spawn(function()
 end)
 
 Window:SelectTab(1)
+
 
