@@ -43,6 +43,12 @@ local Games = {
         Icon = "knife", -- Или любая другая иконка, подходящая под стиль
         KeyName = "mm2"
     },
+    Name = "Rivals",
+        PlaceId = {17625359962},
+        ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/rivald.lua",
+        Icon = "gun", -- Или любая другая иконка, подходящая под стиль
+        KeyName = "rivals"
+    },
     {
         Name = "Tower of Hell",
         PlaceId = {1962086868, 358276339},
