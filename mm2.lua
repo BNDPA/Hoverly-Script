@@ -1,6 +1,6 @@
 --[[
     Project: Hoverly Script | Murder Mystery 2
-    UI Library: Wind UI (Final Version with Auto Shoot & Keybind)
+    UI Library: Wind UI (Final Version with Auto Shoot, Keybind & Advanced Kill All)
 ]]
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
@@ -256,7 +256,6 @@ local function shootMurderer()
     local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
     if not myHRP or not myHum or myHum.Health <= 0 then return end
 
-    -- Ищем пистолет в инвентаре или руках
     local gun = myChar:FindFirstChild("Gun") or (LocalPlayer:FindFirstChild("Backpack") and LocalPlayer.Backpack:FindFirstChild("Gun"))
     if not gun then
         WindUI:Notify({ Title = "Auto Shoot", Content = "Gun not found!", Duration = 3 })
@@ -265,7 +264,6 @@ local function shootMurderer()
 
     if gun.Parent ~= myChar then myHum:EquipTool(gun) end
 
-    -- Ищем Мардера на карте
     local murdererPlayer = nil
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and getRole(p) == "Murderer" then
@@ -277,7 +275,6 @@ local function shootMurderer()
     if murdererPlayer and murdererPlayer.Character then
         local targetHRP = murdererPlayer.Character:FindFirstChild("HumanoidRootPart")
         if targetHRP then
-            -- Направляем камеру на мардера и стреляем
             WorkspaceCamera.CFrame = CFrame.new(WorkspaceCamera.CFrame.Position, targetHRP.Position)
             task.wait(0.05)
             pcall(function()
@@ -310,16 +307,19 @@ CombatTab:Keybind({
     end
 })
 
--- Обработчик нажатия бинда для выстрела
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed and input.KeyCode == autoShootKey then
         shootMurderer()
     end
 end)
 
+-- Усовершенствованный Kill All с 12 быстрыми кликами, обнулением кулдауна и хитбоксами на 1000
+local clickCount = 0
+local lastClickTime = 0
+
 CombatTab:Button({
-    Title = "Kill All (Murder Only)",
-    Description = "Stays in place and instantly eliminates all targets.",
+    Title = "Kill All (Murder Only) + Fast Clicks & Big Hitboxes",
+    Description = "Click screen 12 times quickly to activate. No knife cooldown & 1000 studs hitboxes.",
     Callback = function()
         local myRole = getRole(LocalPlayer)
         if myRole ~= "Murderer" then
@@ -327,60 +327,134 @@ CombatTab:Button({
             return
         end
 
-        local myChar = LocalPlayer.Character
-        local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-        local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
-        
-        if not myHRP or not myHum or myHum.Health <= 0 then return end
+        WindUI:Notify({ 
+            Title = "Action Required", 
+            Content = "Tap/Click your screen 12 times very quickly to confirm!", 
+            Duration = 3 
+        })
 
-        local knife = myChar:FindFirstChild("Knife") or (LocalPlayer:FindFirstChild("Backpack") and LocalPlayer.Backpack:FindFirstChild("Knife"))
-        if not knife then
-            WindUI:Notify({ Title = "Error", Content = "Knife not found in inventory!", Duration = 3 })
-            return
-        end
+        clickCount = 0
+        lastClickTime = tick()
 
-        if knife.Parent ~= myChar then myHum:EquipTool(knife) end
+        local connection
+        connection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                local currentTime = tick()
+                if currentTime - lastClickTime < 0.4 then
+                    clickCount = clickCount + 1
+                else
+                    clickCount = 1
+                end
+                lastClickTime = currentTime
 
-        local originalCFrame = myHRP.CFrame
-        
-        for _, part in ipairs(myChar:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide = false end
-        end
-
-        task.spawn(function()
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character then
-                    local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
-                    local targetHum = player.Character:FindFirstChildOfClass("Humanoid")
+                if clickCount >= 12 then
+                    connection:Disconnect()
                     
-                    if targetHRP and targetHum and targetHum.Health > 0 then
-                        myHRP.CFrame = targetHRP.CFrame * CFrame.new(0, 0, 1.5)
-                        task.wait(0.1)
-                        
-                        pcall(function()
-                            knife:Activate()
-                            if knife:FindFirstChild("Stab") then
-                                knife.Stab:FireServer()
-                            end
-                        end)
-                        task.wait(0.15)
+                    local myChar = LocalPlayer.Character
+                    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+                    local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
+                    
+                    if not myHRP or not myHum or myHum.Health <= 0 then return end
+
+                    local knife = myChar:FindFirstChild("Knife") or (LocalPlayer:FindFirstChild("Backpack") and LocalPlayer.Backpack:FindFirstChild("Knife"))
+                    if not knife then
+                        WindUI:Notify({ Title = "Error", Content = "Knife not found in inventory!", Duration = 3 })
+                        return
                     end
+
+                    if knife.Parent ~= myChar then myHum:EquipTool(knife) end
+
+                    -- Убираем задержку удара (кулдаун) ножа
+                    pcall(function()
+                        for _, v in pairs(knife:GetDescendants()) do
+                            if v:IsA("NumberValue") or v:IsA("IntValue") then
+                                if v.Name:lower():find("cooldown") or v.Name:lower():find("delay") or v.Name:lower():find("rate") then
+                                    v.Value = 0
+                                end
+                            end
+                        end
+                    end)
+
+                    local originalCFrame = myHRP.CFrame
+                    
+                    for _, part in ipairs(myChar:GetDescendants()) do
+                        if part:IsA("BasePart") then part.CanCollide = false end
+                    end
+
+                    local originalSizes = {}
+
+                    task.spawn(function()
+                        -- Увеличиваем хитбоксы всех врагов на 1000
+                        for _, player in ipairs(Players:GetPlayers()) do
+                            if player ~= LocalPlayer and player.Character then
+                                local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
+                                if targetHRP then
+                                    originalSizes[player] = targetHRP.Size
+                                    targetHRP.Size = Vector3.new(1000, 1000, 1000)
+                                    targetHRP.Transparency = 0.9
+                                    targetHRP.CanCollide = false
+                                end
+                            end
+                        end
+
+                        -- Убийство всех целей
+                        for _, player in ipairs(Players:GetPlayers()) do
+                            if player ~= LocalPlayer and player.Character then
+                                local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
+                                local targetHum = player.Character:FindFirstChildOfClass("Humanoid")
+                                
+                                if targetHRP and targetHum and targetHum.Health > 0 then
+                                    myHRP.CFrame = targetHRP.CFrame * CFrame.new(0, 0, 1)
+                                    task.wait(0.02)
+                                    
+                                    for i = 1, 3 do
+                                        pcall(function()
+                                            knife:Activate()
+                                            if knife:FindFirstChild("Stab") then
+                                                knife.Stab:FireServer()
+                                            end
+                                        end)
+                                    end
+                                    task.wait(0.05)
+                                end
+                            end
+                        end
+
+                        -- Возвращаем хитбоксы в исходное состояние
+                        for player, origSize in pairs(originalSizes) do
+                            if player and player.Character then
+                                local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
+                                if targetHRP then
+                                    targetHRP.Size = origSize
+                                    targetHRP.Transparency = 1
+                                    targetHRP.CanCollide = true
+                                end
+                            end
+                        end
+
+                        myHRP.CFrame = originalCFrame
+                        myHRP.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                        myHRP.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                        
+                        for _, part in ipairs(myChar:GetDescendants()) do
+                            if part:IsA("BasePart") then part.CanCollide = true end
+                        end
+
+                        WindUI:Notify({
+                            Title = "Kill All Completed",
+                            Content = "Hitboxes expanded, cooldown removed, targets eliminated!",
+                            Duration = 3
+                        })
+                    end)
                 end
             end
+        end)
 
-            myHRP.CFrame = originalCFrame
-            myHRP.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            myHRP.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-            
-            for _, part in ipairs(myChar:GetDescendants()) do
-                if part:IsA("BasePart") then part.CanCollide = true end
+        task.delay(3, function()
+            if connection and clickCount < 12 then
+                connection:Disconnect()
+                WindUI:Notify({ Title = "Timeout", Content = "Too slow! Click 12 times faster next time.", Duration = 3 })
             end
-
-            WindUI:Notify({
-                Title = "Kill All Completed",
-                Content = "All targets eliminated successfully!",
-                Duration = 3
-            })
         end)
     end
 })
@@ -555,6 +629,6 @@ WorldTab:Toggle({
 
 WindUI:Notify({
     Title = "Hoverly Script Loaded",
-    Content = "Auto Shoot & Keybind added successfully!",
+    Content = "All features & Advanced Kill All updated successfully!",
     Duration = 4
 })
