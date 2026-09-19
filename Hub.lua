@@ -98,6 +98,13 @@ local Games = {
         ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/bf.lua",
         Icon = "swords",
         KeyName = "bloxfruit"
+    },
+    {
+        Name = "Duels murders vs sheriffs",
+        PlaceId = {135856908115931},
+        ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/Dmvs.lua",
+        Icon = "shield-alert",
+        KeyName = "dmvs"
     }
 }
 
@@ -272,3 +279,4 @@ task.spawn(function()
 end)
 
 Window:SelectTab(1)
+
