@@ -1,6 +1,6 @@
 --[[
     Project: Hoverly Script | Murder Mystery 2
-    UI Library: Wind UI (Instant Seamless Flight Auto Farm)
+    UI Library: Wind UI (Absolute Instant Force Shot Without Camera Lock)
 ]]
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
@@ -11,7 +11,6 @@ local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
-local WorkspaceCamera = Workspace.CurrentCamera
 
 local Window = WindUI:CreateWindow({
     Title = "Hoverly Script | Murder Mystery 2",
@@ -144,7 +143,7 @@ Players.PlayerAdded:Connect(function(p)
     p.CharacterRemoving:Connect(function() removeESP(p) end)
 end)
 
--- === 2. TAB: AUTO FARM & COINS (Без задержек между монетами) ===
+-- === 2. TAB: AUTO FARM & COINS ===
 FarmTab:Toggle({
     Title = "Auto Farm Coins (With Noclip)",
     Description = "Smoothly flies continuously to coins without pauses.",
@@ -216,7 +215,6 @@ RunService.Heartbeat:Connect(function(dt)
             hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
             hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
             
-            -- Непрерывный полет без ожидания и пауз при приближении
             hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(targetPos), math.min(dt * (autoFarmSpeed / 8), 1))
         end
     end
@@ -241,10 +239,11 @@ CombatTab:Toggle({
     end
 })
 
-local function shootMurderer()
+-- Абсолютный Force Shot: стреляет напрямую в убийцу БЕЗ наводки камеры
+local function absoluteForceShoot()
     local myRole = getRole(LocalPlayer)
     if myRole ~= "Sheriff" then
-        WindUI:Notify({ Title = "Auto Shoot", Content = "You are not the Sheriff!", Duration = 3 })
+        WindUI:Notify({ Title = "Force Shot", Content = "You are not the Sheriff!", Duration = 3 })
         return
     end
 
@@ -255,7 +254,7 @@ local function shootMurderer()
 
     local gun = myChar:FindFirstChild("Gun") or (LocalPlayer:FindFirstChild("Backpack") and LocalPlayer.Backpack:FindFirstChild("Gun"))
     if not gun then
-        WindUI:Notify({ Title = "Auto Shoot", Content = "Gun not found!", Duration = 3 })
+        WindUI:Notify({ Title = "Force Shot", Content = "Gun not found!", Duration = 3 })
         return
     end
 
@@ -272,32 +271,31 @@ local function shootMurderer()
     if murdererPlayer and murdererPlayer.Character then
         local targetHRP = murdererPlayer.Character:FindFirstChild("HumanoidRootPart")
         if targetHRP then
-            WorkspaceCamera.CFrame = CFrame.new(WorkspaceCamera.CFrame.Position, targetHRP.Position)
-            task.wait(0.05)
             pcall(function()
                 gun:Activate()
                 if gun:FindFirstChild("Shoot") then
+                    -- Моментальный выстрел прямо в позицию убийцы без поворота камеры
                     gun.Shoot:FireServer(targetHRP.Position)
                 end
             end)
-            WindUI:Notify({ Title = "Auto Shoot", Content = "Shot fired at Murderer!", Duration = 2 })
+            WindUI:Notify({ Title = "Force Shot", Content = "Absolute Force Shot sent to Murderer!", Duration = 2 })
         end
     else
-        WindUI:Notify({ Title = "Auto Shoot", Content = "Murderer not found!", Duration = 2 })
+        WindUI:Notify({ Title = "Force Shot", Content = "Murderer not found on map!", Duration = 2 })
     end
 end
 
 CombatTab:Button({
-    Title = "Auto Shoot Murderer (Instant)",
-    Description = "Equips gun and shoots the murderer instantly.",
+    Title = "Absolute Force Shot (No Camera Move)",
+    Description = "Instantly fires at the murderer from anywhere without moving your camera.",
     Callback = function()
-        shootMurderer()
+        absoluteForceShoot()
     end
 })
 
 CombatTab:Keybind({
-    Title = "Auto Shoot Keybind",
-    Description = "Press this key to shoot the murderer.",
+    Title = "Force Shot Keybind",
+    Description = "Press this key to instantly execute a force shot.",
     Value = Enum.KeyCode.E,
     Callback = function(key)
         autoShootKey = key
@@ -306,7 +304,7 @@ CombatTab:Keybind({
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed and input.KeyCode == autoShootKey then
-        shootMurderer()
+        absoluteForceShoot()
     end
 end)
 
@@ -491,7 +489,7 @@ local function isTargetVisible(targetPart)
     raycastParams.FilterDescendantsInstances = {char, targetPart.Parent}
     raycastParams.IgnoreWater = true
 
-    local origin = WorkspaceCamera.CFrame.Position
+    local origin = Workspace.CurrentCamera.CFrame.Position
     local direction = (targetPart.Position - origin)
 
     local result = Workspace:Raycast(origin, direction, raycastParams)
@@ -516,7 +514,7 @@ RunService.RenderStepped:Connect(function()
         if targetPlayer and targetPlayer.Character then
             local targetHead = targetPlayer.Character:FindFirstChild("Head") or targetPlayer.Character:FindFirstChild("HumanoidRootPart")
             if targetHead and isTargetVisible(targetHead) then
-                WorkspaceCamera.CFrame = CFrame.new(WorkspaceCamera.CFrame.Position, targetHead.Position)
+                Workspace.CurrentCamera.CFrame = CFrame.new(Workspace.CurrentCamera.CFrame.Position, targetHead.Position)
             end
         end
     end
@@ -621,6 +619,7 @@ WorldTab:Toggle({
 
 WindUI:Notify({
     Title = "Hoverly Script Loaded",
-    Content = "Continuous flight without coin delays activated!",
+    Content = "Absolute Force Shot mode activated!",
     Duration = 4
 })
+
