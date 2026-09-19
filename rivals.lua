@@ -1,379 +1,212 @@
 --[[
-    Hub Name: Hoverly Script | Rivals (Delta Optimized)
+    Hub Name: Hoverly Script | Rivals (Delta Final Fix)
 --]]
 
 local success, WindUI = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/refs/heads/main/init.lua"))()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 end)
+
+if not success or not WindUI then
+    -- Запасной вариант через альтернативную ветку
+    success, WindUI = pcall(function()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/refs/heads/main/dist/main.lua"))()
+    end)
+end
 
 if not success or not WindUI then
     game:GetService("StarterGui"):SetCore("SendNotification", {
         Title = "Hoverly Script Error",
-        Text = "Failed to load WindUI library!",
+        Text = "Не удалось загрузить WindUI библиотеку!",
         Duration = 5
     })
     return
 end
 
--- Create Main Window
+-- Создание главного окна
 local Window = WindUI:CreateWindow({
     Title = "Hoverly Script | Rivals",
     Icon = "rbxassetid://10723424177",
     Author = ".gg/hoverly",
     Folder = "HoverlyRivals",
-    Size = UDim2.fromOffset(580, 460),
+    Size = UDim2.fromOffset(500, 380),
     Transparent = true,
     Theme = "Dark",
-    SideBarWidth = 160,
+    SideBarWidth = 150,
     HasOutline = true,
 })
 
--- Create Tabs
+-- Создание вкладок
 local Tabs = {
     Aimbot = Window:Tab({ Title = "Aimbot", Icon = "target" }),
-    Visuals = Window:Tab({ Title = "Visuals (ESP)", Icon = "eye" }),
+    Visuals = Window:Tab({ Title = "Visuals", Icon = "eye" }),
     Movement = Window:Tab({ Title = "Movement", Icon = "zap" }),
-    World = Window:Tab({ Title = "World & Misc", Icon = "globe" }),
+    World = Window:Tab({ Title = "World", Icon = "globe" }),
     Settings = Window:Tab({ Title = "Settings", Icon = "settings" }),
 }
 
--- Global Configuration / Variables
+-- Глобальная конфигурация
 getgenv().HoverlyConfig = {
-    Aimbot = {
-        Enabled = false,
-        Smoothness = 5,
-        FOV = 120,
-        Part = "Head",
-        TeamCheck = true,
-    },
-    SilentAim = {
-        Enabled = false,
-        HitChance = 100,
-    },
-    ESP = {
-        Boxes = false,
-        Tracers = false,
-        Names = false,
-        Chams = false,
-        ChamsColor = Color3.fromRGB(255, 0, 0),
-        SkinsUnlocker = false,
-    },
-    Movement = {
-        SpeedHack = false,
-        SpeedMultiplier = 16,
-        Fly = false,
-        Bhop = false,
-    },
-    World = {
-        FullBright = false,
-    }
+    Aimbot = { Enabled = false, Smoothness = 5, FOV = 120, Part = "Head", TeamCheck = true },
+    SilentAim = { Enabled = false, HitChance = 100 },
+    ESP = { Boxes = false, Tracers = false, Names = false, Chams = false, SkinsUnlocker = false },
+    Movement = { SpeedHack = false, SpeedMultiplier = 16, Bhop = false, Fly = false },
+    World = { FullBright = false }
 }
 
--- ==========================================
--- TAB 1: AIMBOT & SILENT AIM
--- ==========================================
-Tabs.Aimbot:Section({ Title = "Aimbot Settings" })
+-- ================= TAB 1: AIMBOT =================
+Tabs.Aimbot:Section({ Title = "Настройки Aimbot" })
 
 Tabs.Aimbot:Toggle({
-    Title = "Enable Aimbot",
+    Title = "Включить Aimbot",
     Default = false,
-    Callback = function(state)
-        getgenv().HoverlyConfig.Aimbot.Enabled = state
-    end
+    Callback = function(v) getgenv().HoverlyConfig.Aimbot.Enabled = v end
 })
 
 Tabs.Aimbot:Dropdown({
-    Title = "Target Part",
+    Title = "Кость (Hitbox)",
     Values = {"Head", "HumanoidRootPart", "Torso"},
     Default = "Head",
-    Callback = function(val)
-        getgenv().HoverlyConfig.Aimbot.Part = val
-    end
+    Callback = function(v) getgenv().HoverlyConfig.Aimbot.Part = v end
 })
 
 Tabs.Aimbot:Slider({
-    Title = "Smoothness",
-    Min = 1,
-    Max = 20,
-    Default = 5,
-    Callback = function(val)
-        getgenv().HoverlyConfig.Aimbot.Smoothness = val
-    end
+    Title = "Плавность (Smoothness)",
+    Min = 1, Max = 20, Default = 5, Step = 1,
+    Callback = function(v) getgenv().HoverlyConfig.Aimbot.Smoothness = v end
 })
 
 Tabs.Aimbot:Slider({
-    Title = "FOV Radius",
-    Min = 30,
-    Max = 400,
-    Default = 120,
-    Callback = function(val)
-        getgenv().HoverlyConfig.Aimbot.FOV = val
-    end
+    Title = "Радиус FOV",
+    Min = 30, Max = 400, Default = 120, Step = 5,
+    Callback = function(v) getgenv().HoverlyConfig.Aimbot.FOV = v end
 })
 
 Tabs.Aimbot:Toggle({
-    Title = "Team Check",
+    Title = "Проверка команды",
     Default = true,
-    Callback = function(state)
-        getgenv().HoverlyConfig.Aimbot.TeamCheck = state
-    end
+    Callback = function(v) getgenv().HoverlyConfig.Aimbot.TeamCheck = v end
 })
 
-Tabs.Aimbot:Section({ Title = "Silent Aim" })
-
-Tabs.Aimbot:Toggle({
-    Title = "Enable Silent Aim",
-    Default = false,
-    Callback = function(state)
-        getgenv().HoverlyConfig.SilentAim.Enabled = state
-    end
-})
-
-Tabs.Aimbot:Slider({
-    Title = "Hit Chance %",
-    Min = 10,
-    Max = 100,
-    Default = 100,
-    Callback = function(val)
-        getgenv().HoverlyConfig.SilentAim.HitChance = val
-    end
-})
-
-
--- ==========================================
--- TAB 2: VISUALS (ESP, CHAMS & SKINS)
--- ==========================================
-Tabs.Visuals:Section({ Title = "Player ESP" })
+-- ================= TAB 2: VISUALS & SKINS =================
+Tabs.Visuals:Section({ Title = "ESP и Визуал" })
 
 Tabs.Visuals:Toggle({
     Title = "Box ESP",
     Default = false,
-    Callback = function(state)
-        getgenv().HoverlyConfig.ESP.Boxes = state
-    end
+    Callback = function(v) getgenv().HoverlyConfig.ESP.Boxes = v end
 })
 
 Tabs.Visuals:Toggle({
-    Title = "Tracer Lines",
+    Title = "Линии (Tracers)",
     Default = false,
-    Callback = function(state)
-        getgenv().HoverlyConfig.ESP.Tracers = state
-    end
+    Callback = function(v) getgenv().HoverlyConfig.ESP.Tracers = v end
 })
 
 Tabs.Visuals:Toggle({
-    Title = "Name & Health Tag",
+    Title = "Имена игроков",
     Default = false,
-    Callback = function(state)
-        getgenv().HoverlyConfig.ESP.Names = state
-    end
+    Callback = function(v) getgenv().HoverlyConfig.ESP.Names = v end
 })
 
-Tabs.Visuals:Section({ Title = "Chams & Highlights" })
+Tabs.Visuals:Section({ Title = "Скины" })
 
 Tabs.Visuals:Toggle({
-    Title = "Wall Chams (Highlight)",
+    Title = "Skins Unlocker",
+    Description = "Разблокировка скинов (безопасно)",
     Default = false,
-    Callback = function(state)
-        getgenv().HoverlyConfig.ESP.Chams = state
+    Callback = function(v) 
+        getgenv().HoverlyConfig.ESP.SkinsUnlocker = v 
     end
 })
 
-Tabs.Visuals:ColorPicker({
-    Title = "Chams Fill Color",
-    Default = Color3.fromRGB(255, 0, 0),
-    Callback = function(color)
-        getgenv().HoverlyConfig.ESP.ChamsColor = color
-    end
-})
-
-Tabs.Visuals:Section({ Title = "Skins & Customization" })
-
-Tabs.Visuals:Toggle({
-    Title = "Skins Unlocker (Visual)",
-    Description = "Unlocks all weapon skins client-side",
-    Default = false,
-    Callback = function(state)
-        getgenv().HoverlyConfig.ESP.SkinsUnlocker = state
-    end
-})
-
--- Safe Background Logic for Skins Unlocker
+-- Фоновый поток для скин-унлокера
 task.spawn(function()
     pcall(function()
-        local plrs = game:GetService("Players")
         local reps = game:GetService("ReplicatedStorage")
-        local http = game:GetService("HttpService")
-
+        local plrs = game:GetService("Players")
         local lp = plrs.LocalPlayer
-        local lps = lp.PlayerScripts
-        local ctrls = lps.Controllers
-        local rmods = reps.Modules
-
-        local elib = require(rmods:WaitForChild("EnumLibrary", 10))
-        if elib then elib:WaitForEnumBuilder() end
-        local clib = require(rmods:WaitForChild("CosmeticLibrary", 10))
-        local ilib = require(rmods:WaitForChild("ItemLibrary", 10))
-        local dctrl = require(ctrls:WaitForChild("PlayerDataController", 10))
+        local rmods = reps:WaitForChild("Modules", 5)
+        if not rmods then return end
+        
+        local clib = require(rmods:WaitForChild("CosmeticLibrary", 5))
+        local dctrl = require(lp.PlayerScripts.Controllers:WaitForChild("PlayerDataController", 5))
         local coss = clib.Cosmetics
-
-        local cdata = dctrl.CurrentData
-        if not cdata then
-            task.spawn(function()
-                repeat task.wait() until dctrl.CurrentData
-                cdata = dctrl.CurrentData
-            end)
-        end
-
-        local equip, favs = {}, {}
-        local cwep, vprof, lwep
-        local fcache = {}
-
-        local function banned(n)
-            if type(n) ~= "string" then return true end
-            return n:find("MISSING_") or n:find("Bubblegum") or n:find("Ragdoll") or n:find("Fall Apart") or n:find("Every Finisher Ever")
-        end
-
-        local function toenum(n)
-            if not elib then return nil end
-            local ok, id = pcall(elib.ToEnum, elib, n)
-            return ok and id or nil
-        end
-
-        local function clonecos(name, ctype, inv, favonly)
-            if banned(name) then return nil end
-            local base = coss[name]
-            if not base then return nil end
-            local d = table.clone(base)
-            d.Name = name
-            d.Type = d.Type or ctype
-            d.Seed = d.Seed or math.random(1, 1000000)
-            local eid = toenum(name)
-            if eid then d.Enum = eid d.ObjectID = d.ObjectID or eid end
-            if inv ~= nil then d.Inverted = inv end
-            if favonly ~= nil then d.OnlyUseFavorites = favonly end
-            return d
-        end
-
-        local finv = {}
-        local function rebuildinv()
-            table.clear(finv)
-            for name in coss do
-                if not banned(name) then finv[name] = true end
-            end
-            for _, cos in equip do
-                for _, cd in cos do
-                    if cd and cd.Name and not banned(cd.Name) then finv[cd.Name] = true end
-                end
-            end
-        end
-
-        rebuildinv()
-
+        
         local oget = dctrl.Get
         dctrl.Get = function(self, key)
             local data = oget(self, key)
             if not getgenv().HoverlyConfig.ESP.SkinsUnlocker then return data end
             if key == "CosmeticInventory" then
                 local proxy = {}
-                if data then for k, v in data do if not banned(k) then proxy[k] = v end end end
-                for name in finv do proxy[name] = true end
+                if data then for k, v in data do proxy[k] = v end end
+                for name in coss do proxy[name] = true end
                 return proxy
             end
             return data
         end
-
-        local ogetwep = dctrl.GetWeaponData
-        dctrl.GetWeaponData = function(self, wname)
-            local data = ogetwep(self, wname)
-            if not data or not getgenv().HoverlyConfig.ESP.SkinsUnlocker then return data end
-            local merged = table.clone(data)
-            merged.Name = wname
-            local weq = equip[wname]
-            if weq then for ct, cd in weq do merged[ct] = cd end end
-            return merged
-        end
     end)
 end)
 
-
--- ==========================================
--- TAB 3: MOVEMENT
--- ==========================================
-Tabs.Movement:Section({ Title = "Character Modifiers" })
+-- ================= TAB 3: MOVEMENT =================
+Tabs.Movement:Section({ Title = "Передвижение" })
 
 Tabs.Movement:Toggle({
     Title = "Speed Hack",
     Default = false,
-    Callback = function(state)
-        getgenv().HoverlyConfig.Movement.SpeedHack = state
-    end
+    Callback = function(v) getgenv().HoverlyConfig.Movement.SpeedHack = v end
 })
 
 Tabs.Movement:Slider({
-    Title = "Speed Multiplier",
-    Min = 16,
-    Max = 100,
-    Default = 24,
-    Callback = function(val)
-        getgenv().HoverlyConfig.Movement.SpeedMultiplier = val
-    end
+    Title = "Множитель скорости",
+    Min = 16, Max = 100, Default = 24, Step = 1,
+    Callback = function(v) getgenv().HoverlyConfig.Movement.SpeedMultiplier = v end
+})
+
+Tabs.Movement:Toggle({	
+    Title = "Распрыжка (Bhop)",
+    Default = false,
+    Callback = function(v) getgenv().HoverlyConfig.Movement.Bhop = v end
 })
 
 Tabs.Movement:Toggle({
-    Title = "Bunny Hop (Auto Jump)",
+    Title = "Режим полета (Fly)",
     Default = false,
-    Callback = function(state)
-        getgenv().HoverlyConfig.Movement.Bhop = state
-    end
+    Callback = function(v) getgenv().HoverlyConfig.Movement.Fly = v end
 })
 
-Tabs.Movement:Toggle({
-    Title = "Fly Mode",
-    Default = false,
-    Callback = function(state)
-        getgenv().HoverlyConfig.Movement.Fly = state
-    end
-})
-
-
--- ==========================================
--- TAB 4: WORLD & MISC
--- ==========================================
-Tabs.World:Section({ Title = "Lighting & Atmosphere" })
+-- ================= TAB 4: WORLD =================
+Tabs.World:Section({ Title = "Окружение" })
 
 Tabs.World:Toggle({
-    Title = "FullBright",
+    Title = "FullBright (Яркий мир)",
     Default = false,
-    Callback = function(state)
-        getgenv().HoverlyConfig.World.FullBright = state
-        if state then
-            game:GetService("Lighting").Brightness = 2
-            game:GetService("Lighting").ClockTime = 14
-            game:GetService("Lighting").GlobalShadows = false
+    Callback = function(v)
+        getgenv().HoverlyConfig.World.FullBright = v
+        local lighting = game:GetService("Lighting")
+        if v then
+            lighting.Brightness = 2
+            lighting.ClockTime = 14
+            lighting.GlobalShadows = false
         else
-            game:GetService("Lighting").GlobalShadows = true
+            lighting.GlobalShadows = true
         end
     end
 })
 
-
--- ==========================================
--- TAB 5: SETTINGS & CONFIGS
--- ==========================================
-Tabs.Settings:Section({ Title = "Interface Management" })
+-- ================= TAB 5: SETTINGS =================
+Tabs.Settings:Section({ Title = "Управление" })
 
 Tabs.Settings:Button({
-    Title = "Unload Hub",
+    Title = "Выгрузить скрипт (Unload)",
     Callback = function()
         WindUI:Destroy()
     end
 })
 
--- Notification
+-- Уведомление
 WindUI:Notify({
-    Title = "Hoverly Script | Rivals",
-    Content = "Successfully loaded on Delta!",
-    Duration = 4
+    Title = "Hoverly Script",
+    Content = "Успешно запущен на Delta!",
+    Duration = 3
 })
 
