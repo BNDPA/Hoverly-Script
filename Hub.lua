@@ -50,6 +50,12 @@ local Games = {
         Icon = "knife",
         KeyName = "mm2"
     },
+           Name = "Fling Things or peoples",
+        PlaceId = {6961824067},
+        ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/Ftap.lua",
+        Icon = "cloud-rain",
+        KeyName = "Ftap"
+    },
     {
         Name = "Tower of Hell",
         PlaceId = {1962086868, 358276339},
