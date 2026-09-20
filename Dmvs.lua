@@ -17,6 +17,7 @@ getgenv().HoverlyConfig = {
     KillAllInstant = false,
     AutoShot = false,
     NoDelay = false,
+    HitboxExpander = false,
     HitboxSize = 15,
     Visuals = true
 }
@@ -85,8 +86,8 @@ ScreenGui.Parent = CoreGui
 -- Main Window Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 480, 0, 340)
-MainFrame.Position = UDim2.new(0.5, -240, 0.5, -170)
+MainFrame.Size = UDim2.new(0, 480, 0, 420) -- Увеличили высоту под слайдер
+MainFrame.Position = UDim2.new(0.5, -240, 0.5, -210)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -113,7 +114,6 @@ local TopCorner = Instance.new("UICorner")
 TopCorner.CornerRadius = UDim.new(0, 10)
 TopCorner.Parent = TopBar
 
--- Fix top corners rounding bottom of topbar
 local FixFrame = Instance.new("Frame")
 FixFrame.Size = UDim2.new(1, 0, 0, 10)
 FixFrame.Position = UDim2.new(0, 0, 1, -10)
@@ -132,7 +132,6 @@ TitleLabel.TextSize = 15
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TopBar
 
--- Close/Toggle Keybind note
 local SubTitle = Instance.new("TextLabel")
 SubTitle.Size = UDim2.new(1, -20, 1, 0)
 SubTitle.Position = UDim2.new(0, -15, 0, 0)
@@ -150,7 +149,7 @@ ContentContainer.Size = UDim2.new(1, -20, 1, -55)
 ContentContainer.Position = UDim2.new(0, 10, 0, 48)
 ContentContainer.BackgroundTransparency = 1
 ContentContainer.BorderSizePixel = 0
-ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 300)
+ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 380)
 ContentContainer.ScrollBarThickness = 4
 ContentContainer.Parent = MainFrame
 
@@ -159,7 +158,7 @@ UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 10)
 UIListLayout.Parent = ContentContainer
 
--- UI Component Generator helpers
+-- UI Component Helpers
 local function CreateToggle(name, description, callback)
     local ToggleFrame = Instance.new("Frame")
     ToggleFrame.Size = UDim2.new(1, 0, 0, 50)
@@ -232,20 +231,112 @@ local function CreateToggle(name, description, callback)
     end)
 end
 
+local function CreateSlider(name, min, max, default, callback)
+    local SliderFrame = Instance.new("Frame")
+    SliderFrame.Size = UDim2.new(1, 0, 0, 60)
+    SliderFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 33)
+    SliderFrame.BorderSizePixel = 0
+    SliderFrame.Parent = ContentContainer
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.Parent = SliderFrame
+
+    local NameLabel = Instance.new("TextLabel")
+    NameLabel.Size = UDim2.new(1, -20, 0, 20)
+    NameLabel.Position = UDim2.new(0, 12, 0, 6)
+    NameLabel.BackgroundTransparency = 1
+    NameLabel.Font = Enum.Font.GothamBold
+    NameLabel.Text = name
+    NameLabel.TextColor3 = Color3.fromRGB(240, 240, 255)
+    NameLabel.TextSize = 13
+    NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    NameLabel.Parent = SliderFrame
+
+    local ValueLabel = Instance.new("TextLabel")
+    ValueLabel.Size = UDim2.new(0, 50, 0, 20)
+    ValueLabel.Position = UDim2.new(1, -62, 0, 6)
+    ValueLabel.BackgroundTransparency = 1
+    ValueLabel.Font = Enum.Font.GothamBold
+    ValueLabel.Text = tostring(default)
+    ValueLabel.TextColor3 = Color3.fromRGB(150, 100, 255)
+    ValueLabel.TextSize = 13
+    ValueLabel.TextXAlignment = Enum.TextXAlignment.Right
+    ValueLabel.Parent = SliderFrame
+
+    local SliderBar = Instance.new("Frame")
+    SliderBar.Size = UDim2.new(1, -24, 0, 6)
+    SliderBar.Position = UDim2.new(0, 12, 0, 38)
+    SliderBar.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+    SliderBar.BorderSizePixel = 0
+    SliderBar.Parent = SliderFrame
+
+    local BarCorner = Instance.new("UICorner")
+    BarCorner.CornerRadius = UDim.new(1, 0)
+    BarCorner.Parent = SliderBar
+
+    local FillBar = Instance.new("Frame")
+    FillBar.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    FillBar.BackgroundColor3 = Color3.fromRGB(110, 60, 240)
+    FillBar.BorderSizePixel = 0
+    FillBar.Parent = SliderBar
+
+    local FillCorner = Instance.new("UICorner")
+    FillCorner.CornerRadius = UDim.new(1, 0)
+    FillCorner.Parent = FillBar
+
+    local dragging = false
+    local function UpdateInput(input)
+        local pos = math.clamp((input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X, 0, 1)
+        local val = math.floor(min + ((max - min) * pos))
+        FillBar.Size = UDim2.new(pos, 0, 1, 0)
+        ValueLabel.Text = tostring(val)
+        callback(val)
+    end
+
+    SliderBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            UpdateInput(input)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            UpdateInput(input)
+        end
+    end)
+end
+
 -- UI Features Initialization
-CreateToggle("Kill All (Instant)", "Enlarges hitboxes & cycles shots to eliminate enemies", function(state)
+CreateToggle("Kill All (Instant)", "Cycles through enemies and eliminates them instantly", function(state)
     getgenv().HoverlyConfig.KillAllInstant = state
-    Notify("Kill All", state, 2)
+    Notify("Kill All", tostring(state), 2)
+end)
+
+CreateToggle("Hitbox Expander", "Enlarges player hitboxes for easier hits", function(state)
+    getgenv().HoverlyConfig.HitboxExpander = state
+    Notify("Hitbox Expander", tostring(state), 2)
+end)
+
+CreateSlider("Hitbox Size", 2, 200, 15, function(value)
+    getgenv().HoverlyConfig.HitboxSize = value
 end)
 
 CreateToggle("Auto Shot", "Automatically aims and fires at visible targets", function(state)
     getgenv().HoverlyConfig.AutoShot = state
-    Notify("Auto Shot", state, 2)
+    Notify("Auto Shot", tostring(state), 2)
 end)
 
 CreateToggle("No Delay", "Removes cooldowns/delays on attacks & tools", function(state)
     getgenv().HoverlyConfig.NoDelay = state
-    Notify("No Delay", state, 2)
+    Notify("No Delay", tostring(state), 2)
 end)
 
 -- UI Toggle Keybind
@@ -264,10 +355,10 @@ local function GetRootPart(character)
     return character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso"))
 end
 
--- Esp & Hitbox / Combat Loop
+-- Main Loop
 RunService.RenderStepped:Connect(function()
-    -- 1. Hitbox & Kill All Logic
-    if getgenv().HoverlyConfig.KillAllInstant then
+    -- 1. Hitbox Expander & Visuals
+    if getgenv().HoverlyConfig.HitboxExpander or getgenv().HoverlyConfig.KillAllInstant then
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
                 local char = player.Character
@@ -275,9 +366,9 @@ RunService.RenderStepped:Connect(function()
                 local rootPart = GetRootPart(char)
                 
                 if humanoid and humanoid.Health > 0 and rootPart then
-                    -- Expand hitboxes for reliable target hitting
-                    rootPart.Size = Vector3.new(getgenv().HoverlyConfig.HitboxSize, getgenv().HoverlyConfig.HitboxSize, getgenv().HoverlyConfig.HitboxSize)
-                    rootPart.Transparency = 0.7
+                    local targetSize = getgenv().HoverlyConfig.HitboxSize
+                    rootPart.Size = Vector3.new(targetSize, targetSize, targetSize)
+                    rootPart.Transparency = 0.6
                     rootPart.CanCollide = false
                 end
             end
@@ -299,9 +390,8 @@ RunService.RenderStepped:Connect(function()
                         local enemyHum = enemyChar:FindFirstChildOfClass("Humanoid")
                         
                         if enemyRoot and enemyHum and enemyHum.Health > 0 then
-                            -- Check line of sight or distance
                             local distance = (enemyRoot.Position - char.PrimaryPart.Position).Magnitude
-                            if distance < 100 then
+                            if distance < 120 then
                                 tool:Activate()
                             end
                         end
@@ -311,17 +401,14 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
-    -- 3. No Delay Logic (Bypassing tool cooldowns)
+    -- 3. No Delay Logic
     if getgenv().HoverlyConfig.NoDelay then
         pcall(function()
             local char = LocalPlayer.Character
             if char then
                 local tool = char:FindFirstChildOfClass("Tool")
-                if tool then
-                    -- Reset cooldown properties if exposed
-                    if tool:FindFirstChild("Cooldown") then
-                        tool.Cooldown.Value = 0
-                    end
+                if tool and tool:FindFirstChild("Cooldown") then
+                    tool.Cooldown.Value = 0
                 end
             end
         end)
