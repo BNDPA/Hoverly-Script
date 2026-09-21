@@ -1,6 +1,6 @@
 --[[
-    Project: Hoverly Script | DOORS (All Floors + Rooms, Smart Hide/Sit & Fixed ESP/Interact)
-    Features: Multi-Floor ESP (Fixed), Smart Auto-Interact (No Paintings/Vending, Smart Hide on Monster), All Entities ESP
+    Project: Hoverly Script | DOORS (All Floors + Rooms, Smart Hide/Sit & Excluded Seek/Paintings/Vending)
+    Features: Multi-Floor ESP, Smart Auto-Interact (No Seek, Paintings, Vending), All Entities ESP
 ]]
 
 local success, WindUI = pcall(function()
@@ -115,7 +115,7 @@ local monitoredEntities = {
 Workspace.ChildAdded:Connect(function(child)
     local name = child.Name
     if monitoredEntities[name] or name:find("A-") or name:find("Rush") or name:find("Ambush") then
-        if name ~= "Eyes" and name ~= "Screech" and name ~= "Snare" and name ~= "Timothy" and name ~= "A-90" then
+        if name ~= "Eyes" and name ~= "Screech" and name ~= "Snare" and name ~= "Timothy" and name ~= "A-90" and name ~= "SeekMoving" then
             monsterActive = true
         end
 
@@ -133,7 +133,7 @@ Workspace.ChildRemoved:Connect(function(child)
     local name = child.Name
     if monitoredEntities[name] or name:find("A-") or name:find("Rush") or name:find("Ambush") then
         local dangerFound = false
-        for _, entName in pairs({"RushMoving", "AmbushMoving", "A-60", "A-120", "Halt", "Figure", "SeekMoving"}) do
+        for _, entName in pairs({"RushMoving", "AmbushMoving", "A-60", "A-120", "Halt", "Figure"}) do
             if Workspace:FindFirstChild(entName) then
                 dangerFound = true
                 break
@@ -226,11 +226,11 @@ RunService.Stepped:Connect(function()
 end)
 
 -- =================================================================
--- 3. AUTO INTERACT (Игнор автоматов, картин и сидений без набега)
+-- 3. AUTO INTERACT (Игнор автоматов, картин, сидений и Сика)
 -- =================================================================
 MainTab:Toggle({
     Title = "Auto Open Doors, Keys, Levers & Lockers",
-    Description = "Interacts with doors, keys, levers. Seats & lockers auto-hide ONLY during monster raids. Vending & Paintings ignored.",
+    Description = "Interacts with doors, keys, levers. Seats & lockers auto-hide ONLY during standard raids. Vending, Paintings & Seek ignored.",
     Value = false,
     Callback = function(state)
         autoInteractEnabled = state
@@ -251,9 +251,10 @@ MainTab:Toggle({
                                 
                                 local isIgnored = false
 
-                                -- 1. Игнор автоматов с фонариками, магазинов и КАРИИН (Paintings / Portrait)
+                                -- 1. Полный игнор автоматов, магазинов, картин и объектов Сика (Seek)
                                 if parentName:find("vending") or parentName:find("shop") or parentName:find("jeff") or 
                                    parentName:find("painting") or parentName:find("portrait") or parentName:find("canvas") or
+                                   parentName:find("seek") or grandparentName:find("seek") or actionText:find("seek") or
                                    grandparentName:find("vending") or grandparentName:find("shop") or actionText:find("buy") then
                                     isIgnored = true
                                 end
@@ -338,7 +339,7 @@ MainTab:Toggle({
 })
 
 -- =================================================================
--- 4. MULTI-FLOOR & ROOMS ESP (Fixed spawn/door bug)
+-- 4. MULTI-FLOOR & ROOMS ESP
 -- =================================================================
 ESPTab:Toggle({
     Title = "ESP Doors, Keys, Levers, Books & Breakers",
@@ -387,7 +388,6 @@ task.spawn(function()
 
             espFolder:ClearAllChildren()
 
-            -- Работаем строго внутри CurrentRooms, чтобы убрать спавн-баги перед дверями извне
             local roomsContainer = Workspace:FindFirstChild("CurrentRooms")
             if roomsContainer then
                 for _, room in pairs(roomsContainer:GetChildren()) do
@@ -534,7 +534,7 @@ WorldTab:Toggle({
 
 WindUI:Notify({
     Title = "Hoverly Script Updated",
-    Content = "Paintings & Spawn-ESP bugs fixed!",
+    Content = "Seek ignored for Auto-Interact!",
     Duration = 4
 })
 
