@@ -1,6 +1,6 @@
 --[[
-    Project: Hoverly Script | DOORS (Auto Play Removed, Smart NoClip & Auto Loot)
-    Features: Smart NoClip (Small Parts Only), Auto Hide/Sit, Auto Keys, Speed 20, ESP
+    Project: Hoverly Script | DOORS (All Floors + Rooms ESP & Full Entities)
+    Features: Multi-Floor ESP (Hotel, Backdoors, Mines, Archives, Stairwell, Rooms A-000), All Entities ESP, Smart NoClip, Auto Loot
 ]]
 
 local success, WindUI = pcall(function()
@@ -20,7 +20,7 @@ local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
 local Window = WindUI:CreateWindow({
-    Title = "Hoverly Script | DOORS",
+    Title = "Hoverly Script | DOORS (All Floors & Rooms)",
     Icon = "door-closed",
     Author = "Hoverly Development",
     Theme = "Dark",
@@ -29,7 +29,7 @@ local Window = WindUI:CreateWindow({
 
 local MainTab = Window:Tab({ Title = "Main / Auto", Icon = "home" })
 local PlayerTab = Window:Tab({ Title = "Player", Icon = "user" })
-local ESPTab = Window:Tab({ Title = "Visuals (ESP)", Icon = "eye" })
+local ESPTab = Window:Tab({ Title = "Multi-Floor ESP", Icon = "eye" })
 local WorldTab = Window:Tab({ Title = "World", Icon = "globe" })
 
 local noclipEnabled = false
@@ -74,11 +74,11 @@ local function createBillboard(target, text, color)
 end
 
 -- =================================================================
--- 1. ENTITY NOTIFIER & SCREECH AUTO CHECK
+-- 1. ALL ENTITIES NOTIFIER & SCREECH AUTO CHECK
 -- =================================================================
 MainTab:Toggle({
     Title = "Entity Notifier (Notice)",
-    Description = "Warns you when Rush, Ambush, Screech, Eyes or other entities spawn.",
+    Description = "Warns you when ANY entity spawns (Rush, Ambush, A-60, A-90, A-120, Figure, Seek, etc).",
     Value = false,
     Callback = function(state)
         entityNotifierEnabled = state
@@ -94,27 +94,36 @@ MainTab:Toggle({
     end
 })
 
+-- Полный список всех монстров из игры и Rooms
 local monitoredEntities = {
     ["RushMoving"] = "Rush is coming! HIDE NOW!",
     ["AmbushMoving"] = "Ambush is coming! HIDE & GET READY TO CLICK!",
     ["Eyes"] = "Eyes spawned! Don't look at them!",
     ["Halt"] = "Halt room! Turn around or move back!",
-    ["A-60"] = "A-60 is coming! HIDE IN A LOCKER!",
-    ["A-120"] = "A-120 is coming! HIDE QUICKLY!",
-    ["Screech"] = "Screech appeared! Looking at him..."
+    ["A-60"] = "A-60 (The Rooms) is coming! HIDE IN A LOCKER!",
+    ["A-90"] = "A-90 (The Rooms) appeared! STOP MOVING COMPLETELY!",
+    ["A-120"] = "A-120 (The Rooms) is coming! HIDE QUICKLY!",
+    ["Screech"] = "Screech appeared! Looking at him...",
+    ["Glitch"] = "Glitch teleported you!",
+    ["Snare"] = "Floor trap (Snare) nearby!",
+    ["Figure"] = "Figure is near! Stay crouched and quiet!",
+    ["SeekMoving"] = "SEEK CHASE! RUN!",
+    ["Timothy"] = "Timothy jumped out of a drawer!",
+    ["Jack"] = "Jack spooky event!",
+    ["Void"] = "Void caught you lagging behind!"
 }
 
 Workspace.ChildAdded:Connect(function(child)
     local name = child.Name
-    if monitoredEntities[name] then
-        if name ~= "Eyes" and name ~= "Screech" then
+    if monitoredEntities[name] or name:find("A-") or name:find("Rush") or name:find("Ambush") then
+        if name ~= "Eyes" and name ~= "Screech" and name ~= "Snare" and name ~= "Timothy" and name ~= "A-90" then
             monsterActive = true
         end
 
         if entityNotifierEnabled then
             WindUI:Notify({
                 Title = "⚠️ WARNING: " .. name,
-                Content = monitoredEntities[name],
+                Content = monitoredEntities[name] or ("Dangerous entity " .. name .. " spawned!"),
                 Duration = 4
             })
         end
@@ -122,9 +131,10 @@ Workspace.ChildAdded:Connect(function(child)
 end)
 
 Workspace.ChildRemoved:Connect(function(child)
-    if monitoredEntities[child.Name] then
+    local name = child.Name
+    if monitoredEntities[name] or name:find("A-") or name:find("Rush") or name:find("Ambush") then
         local dangerFound = false
-        for _, entName in pairs({"RushMoving", "AmbushMoving", "A-60", "A-120", "Halt"}) do
+        for _, entName in pairs({"RushMoving", "AmbushMoving", "A-60", "A-120", "Halt", "Figure", "SeekMoving"}) do
             if Workspace:FindFirstChild(entName) then
                 dangerFound = true
                 break
@@ -164,7 +174,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- =================================================================
--- 2. PLAYER (УМНЫЙ NOCLIP ТОЛЬКО ДЛЯ МЕЛКИХ ХИТБОКСОВ & SPEED 20)
+-- 2. PLAYER UTILITIES (Smart NoClip & Speed)
 -- =================================================================
 PlayerTab:Toggle({
     Title = "Smart NoClip (Small Parts Only)",
@@ -217,11 +227,11 @@ RunService.Stepped:Connect(function()
 end)
 
 -- =================================================================
--- 3. AUTO INTERACT & AUTO KEY
+-- 3. AUTO INTERACT & AUTO PUZZLES (Hotel, Mines, Rooms)
 -- =================================================================
 MainTab:Toggle({
-    Title = "Auto Open Doors, Keys & Levers",
-    Description = "Automatically opens doors, picks up keys, pulls levers. Interacts with closets/seats when needed.",
+    Title = "Auto Open Doors, Keys, Levers & Lockers",
+    Description = "Interacts with doors, keys, levers, switches, and lockers across Hotel, Mines, Backdoors & Rooms.",
     Value = false,
     Callback = function(state)
         autoInteractEnabled = state
@@ -235,18 +245,15 @@ MainTab:Toggle({
                         for _, obj in pairs(Workspace:GetDescendants()) do
                             if obj:IsA("ProximityPrompt") then
                                 local actionText = obj.ActionText:lower()
-                                local objectName = obj.Name:lower()
                                 local parent = obj.Parent
                                 local parentName = parent and parent.Name:lower() or ""
                                 
                                 local isIgnored = false
                                 local isHideAction = actionText:find("hide") or actionText:find("enter") or 
-                                                     parentName:find("wardrobe") or parentName:find("closet") or parentName:find("bed")
+                                                     parentName:find("wardrobe") or parentName:find("closet") or parentName:find("bed") or parentName:find("locker")
 
-                                if isHideAction then
-                                    if not monsterActive then
-                                        isIgnored = true
-                                    end
+                                if isHideAction and not monsterActive then
+                                    isIgnored = true
                                 end
 
                                 if not isIgnored then
@@ -275,8 +282,8 @@ MainTab:Toggle({
 })
 
 MainTab:Toggle({
-    Title = "Auto Key (Figure Library Puzzle)",
-    Description = "Automatically gathers books in Room 50 and unlocks the door.",
+    Title = "Auto Books & Puzzles (Library / Mines)",
+    Description = "Automatically gathers books in Room 50, breaker boxes in Mines, and solves key-locks.",
     Value = false,
     Callback = function(state)
         autoKeyEnabled = state
@@ -291,24 +298,22 @@ MainTab:Toggle({
                     local rooms = Workspace:FindFirstChild("CurrentRooms")
                     if rooms then
                         for _, room in pairs(rooms:GetChildren()) do
-                            if room.Name == "50" or room:FindFirstChild("FigureSetup") then
-                                for _, item in pairs(room:GetDescendants()) do
-                                    if item.Name == "LiveHintBook" and item:FindFirstChild("Prompt") then
-                                        local prompt = item.Prompt
-                                        local targetPart = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
-                                        if targetPart and (hrp.Position - targetPart.Position).Magnitude < 15 then
-                                            fireproximityprompt(prompt)
-                                        end
-                                    end
-                                end
-
-                                local door = room:FindFirstChild("Door")
-                                local padlock = door and door:FindFirstChild("Padlock")
-                                if padlock then
-                                    local prompt = padlock:FindFirstChild("Prompt") or padlock:FindFirstChildWhichIsA("ProximityPrompt")
-                                    if prompt and (hrp.Position - padlock.Position).Magnitude < 12 then
+                            for _, item in pairs(room:GetDescendants()) do
+                                if (item.Name == "LiveHintBook" or item.Name:lower():find("breaker")) and item:FindFirstChild("Prompt") then
+                                    local prompt = item.Prompt
+                                    local targetPart = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
+                                    if targetPart and (hrp.Position - targetPart.Position).Magnitude < 15 then
                                         fireproximityprompt(prompt)
                                     end
+                                end
+                            end
+
+                            local door = room:FindFirstChild("Door")
+                            local padlock = door and door:FindFirstChild("Padlock")
+                            if padlock then
+                                local prompt = padlock:FindFirstChild("Prompt") or padlock:FindFirstChildWhichIsA("ProximityPrompt")
+                                if prompt and (hrp.Position - padlock.Position).Magnitude < 12 then
+                                    fireproximityprompt(prompt)
                                 end
                             end
                         end
@@ -320,11 +325,11 @@ MainTab:Toggle({
 })
 
 -- =================================================================
--- 4. VISUALS & ESP
+-- 4. MULTI-FLOOR & ROOMS ESP (Hotel, Backdoors, Mines, Rooms, etc.)
 -- =================================================================
 ESPTab:Toggle({
-    Title = "ESP Doors, Keys, Levers & Books",
-    Description = "Highlights active doors, keys, levers, and books (books only in Room 50).",
+    Title = "ESP Doors, Keys, Levers, Books & Breakers",
+    Description = "Highlights progression items across Hotel, Mines, Backdoors, Stairwell & The Rooms.",
     Value = false,
     Callback = function(state)
         espItemsEnabled = state
@@ -332,8 +337,8 @@ ESPTab:Toggle({
 })
 
 ESPTab:Toggle({
-    Title = "ESP Closets / Wardrobes",
-    Description = "Highlights hideable closets and wardrobes in purple.",
+    Title = "ESP Closets / Hiding Spots / Lockers",
+    Description = "Highlights wardrobes, lockers, beds, and safe hiding spots (including The Rooms lockers) in purple.",
     Value = false,
     Callback = function(state)
         espClosetsEnabled = state
@@ -350,8 +355,8 @@ ESPTab:Toggle({
 })
 
 ESPTab:Toggle({
-    Title = "ESP Monsters / Entities",
-    Description = "Highlights incoming entities in red.",
+    Title = "ESP ALL Monsters / Entities",
+    Description = "Highlights ALL incoming entities across ALL floors (Rush, Ambush, A-60, A-120, Figure, Seek, etc.) in red.",
     Value = false,
     Callback = function(state)
         espEntitiesEnabled = state
@@ -369,52 +374,90 @@ task.spawn(function()
 
             espFolder:ClearAllChildren()
 
-            if espItemsEnabled then
-                if Workspace:FindFirstChild("CurrentRooms") then
-                    for _, room in pairs(Workspace.CurrentRooms:GetChildren()) do
-                        local door = room:FindFirstChild("Door")
-                        if door then
-                            local targetPart = door:FindFirstChild("Knob") or door:FindFirstChild("Door") or door:FindFirstChildWhichIsA("BasePart")
-                            if targetPart and targetPart:IsA("BasePart") then
-                                local hl = Instance.new("Highlight")
-                                hl.Adornee = targetPart
-                                hl.FillColor = Color3.fromRGB(0, 255, 0)
-                                hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                                hl.FillTransparency = 0.4
-                                hl.Parent = espFolder
-                                createBillboard(targetPart, "🚪 door", Color3.fromRGB(0, 255, 0))
+            -- Сканирование комнат (CurrentRooms для всех этажей и Rooms)
+            local roomsContainer = Workspace:FindFirstChild("CurrentRooms")
+            if roomsContainer then
+                for _, room in pairs(roomsContainer:GetChildren()) do
+                    -- Двери
+                    local door = room:FindFirstChild("Door")
+                    if door and espItemsEnabled then
+                        local targetPart = door:FindFirstChild("Knob") or door:FindFirstChild("Door") or door:FindFirstChildWhichIsA("BasePart")
+                        if targetPart and targetPart:IsA("BasePart") then
+                            local hl = Instance.new("Highlight")
+                            hl.Adornee = targetPart
+                            hl.FillColor = Color3.fromRGB(0, 255, 0)
+                            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                            hl.FillTransparency = 0.4
+                            hl.Parent = espFolder
+                            createBillboard(targetPart, "🚪 door", Color3.fromRGB(0, 255, 0))
+                        end
+                    end
+
+                    -- Предметы и элементы комнат (Книги, Ключи, Предохранители, Рычаги в Rooms)
+                    if espItemsEnabled then
+                        for _, item in pairs(room:GetDescendants()) do
+                            local itemName = item.Name:lower()
+                            local labelText = ""
+                            local color = Color3.fromRGB(255, 230, 0)
+
+                            if itemName == "livehintbook" then
+                                labelText = "📖 book"
+                                color = Color3.fromRGB(0, 200, 255)
+                            elseif itemName:find("breaker") or itemName:find("switch") or itemName:find("lever") then
+                                labelText = "⚙️ mechanism"
+                                color = Color3.fromRGB(255, 140, 0)
+                            elseif itemName == "key" or itemName == "keycard" or itemName == "padlock" then
+                                labelText = "🔑 key"
+                                color = Color3.fromRGB(255, 230, 0)
+                            end
+
+                            if labelText ~= "" then
+                                local targetPart = item:IsA("Model") and (item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")) or item
+                                if targetPart and targetPart:IsA("BasePart") then
+                                    local hl = Instance.new("Highlight")
+                                    hl.Adornee = item
+                                    hl.FillColor = color
+                                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                                    hl.FillTransparency = 0.4
+                                    hl.Parent = espFolder
+                                    createBillboard(targetPart, labelText, color)
+                                end
                             end
                         end
+                    end
 
-                        if room.Name == "50" or room:FindFirstChild("FigureSetup") then
-                            for _, item in pairs(room:GetDescendants()) do
-                                if item.Name == "LiveHintBook" then
-                                    local targetPart = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
-                                    if targetPart and targetPart:IsA("BasePart") then
-                                        local hl = Instance.new("Highlight")
-                                        hl.Adornee = item
-                                        hl.FillColor = Color3.fromRGB(0, 200, 255)
-                                        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                                        hl.FillTransparency = 0.4
-                                        hl.Parent = espFolder
-                                        createBillboard(targetPart, "📖 book", Color3.fromRGB(0, 200, 255))
-                                    end
+                    -- Шкафы, шкафчики Rooms (Lockers) и укрытия
+                    if espClosetsEnabled then
+                        for _, obj in pairs(room:GetDescendants()) do
+                            local name = obj.Name:lower()
+                            if name:find("wardrobe") or name:find("closet") or name:find("bed") or name:find("locker") or name:find("hide") then
+                                local targetPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
+                                if targetPart and targetPart:IsA("BasePart") then
+                                    local hl = Instance.new("Highlight")
+                                    hl.Adornee = obj
+                                    hl.FillColor = Color3.fromRGB(160, 32, 240)
+                                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                                    hl.FillTransparency = 0.4
+                                    hl.Parent = espFolder
+                                    createBillboard(targetPart, "🗄️ locker / hiding", Color3.fromRGB(160, 32, 240))
                                 end
                             end
                         end
                     end
                 end
+            end
 
+            -- Глобальные ключи/предметы вне комнат
+            if espItemsEnabled then
                 for _, obj in pairs(Workspace:GetDescendants()) do
                     if obj:IsA("Model") or obj:IsA("BasePart") then
                         local name = obj.Name:lower()
                         local labelText = ""
                         local color = Color3.fromRGB(255, 230, 0)
 
-                        if (name == "key" or name == "keycard" or name == "padlock" or name:find("key[v%d]") or name:find("keyrig")) and not name:find("painting") then
+                        if (name == "key" or name == "keycard" or name:find("key[v%d]")) and not name:find("painting") then
                             labelText = "🔑 key"
-                            color = Color3.fromRGB(255, 230, 0)
-                        elseif name:find("lever") or name:find("breaker") or name:find("switch") then
+                        elseif name:find("lever") or name:find("breaker") then
                             labelText = "⚙️ lever"
                             color = Color3.fromRGB(255, 140, 0)
                         end
@@ -435,26 +478,7 @@ task.spawn(function()
                 end
             end
 
-            if espClosetsEnabled then
-                for _, obj in pairs(Workspace:GetDescendants()) do
-                    if obj:IsA("Model") or obj:IsA("BasePart") then
-                        local name = obj.Name:lower()
-                        if name:find("wardrobe") or name:find("closet") or name:find("bed") then
-                            local targetPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
-                            if targetPart and targetPart:IsA("BasePart") then
-                                local hl = Instance.new("Highlight")
-                                hl.Adornee = obj
-                                hl.FillColor = Color3.fromRGB(160, 32, 240)
-                                hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                                hl.FillTransparency = 0.4
-                                hl.Parent = espFolder
-                                createBillboard(targetPart, "🗄️ closet", Color3.fromRGB(160, 32, 240))
-                            end
-                        end
-                    end
-                end
-            end
-
+            -- ESP Игроков
             if espPlayersEnabled then
                 for _, player in pairs(Players:GetPlayers()) do
                     if player ~= LocalPlayer and player.Character then
@@ -473,9 +497,26 @@ task.spawn(function()
                 end
             end
 
+            -- ESP ВСЕХ МОНСТРОВ И СУЩНОСТЕЙ В ИГРЕ (Rooms: A-60, A-90, A-120; Hotel: Rush, Ambush, Figure, Eyes, Screech и т.д.)
             if espEntitiesEnabled then
                 for _, entity in pairs(Workspace:GetChildren()) do
-                    if monitoredEntities[entity.Name] or entity.Name == "RushMoving" or entity.Name == "AmbushMoving" or entity.Name == "Eyes" or entity.Name == "Halt" or entity.Name == "Figure" or entity.Name:lower():find("screech") then
+                    local entityName = entity.Name
+                    local nameLower = entityName:lower()
+                    
+                    local isMonster = monitoredEntities[entityName] or 
+                                      nameLower:find("rush") or 
+                                      nameLower:find("ambush") or 
+                                      nameLower:find("eyes") or 
+                                      nameLower:find("halt") or 
+                                      nameLower:find("figure") or 
+                                      nameLower:find("seek") or 
+                                      nameLower:find("screech") or 
+                                      nameLower:find("snare") or 
+                                      nameLower:find("dupe") or 
+                                      nameLower:find("glitch") or 
+                                      entityName:find("A-")
+
+                    if isMonster then
                         local targetPart = entity:IsA("Model") and (entity.PrimaryPart or entity:FindFirstChildWhichIsA("BasePart")) or entity
                         if targetPart and targetPart:IsA("BasePart") then
                             local hl = Instance.new("Highlight")
@@ -484,7 +525,7 @@ task.spawn(function()
                             hl.OutlineColor = Color3.fromRGB(255, 255, 255)
                             hl.FillTransparency = 0.3
                             hl.Parent = espFolder
-                            createBillboard(targetPart, "⚠️ " .. entity.Name, Color3.fromRGB(255, 0, 0))
+                            createBillboard(targetPart, "⚠️ " .. entityName, Color3.fromRGB(255, 0, 0))
                         end
                     end
                 end
@@ -498,7 +539,7 @@ end)
 -- =================================================================
 WorldTab:Toggle({
     Title = "Fullbright",
-    Description = "Removes dark areas and makes everything bright.",
+    Description = "Removes dark areas and makes everything bright (extremely useful in The Rooms / Mines).",
     Value = false,
     Callback = function(state)
         if state then
@@ -516,7 +557,7 @@ WorldTab:Toggle({
 
 WindUI:Notify({
     Title = "Hoverly Script Updated",
-    Content = "Auto Play removed. Script updated successfully!",
+    Content = "Rooms ESP & All Entities ESP loaded successfully!",
     Duration = 4
 })
 
