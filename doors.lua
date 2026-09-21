@@ -1,6 +1,6 @@
 --[[
-    Project: Hoverly Script | DOORS (All Floors + Rooms ESP & Full Entities)
-    Features: Multi-Floor ESP (Hotel, Backdoors, Mines, Archives, Stairwell, Rooms A-000), All Entities ESP, Smart NoClip, Auto Loot
+    Project: Hoverly Script | DOORS (All Floors + Rooms, Smart Hide/Sit & No Vending)
+    Features: Multi-Floor ESP, Smart Auto-Interact (Excludes Vending Machines, Smart Hide on Monster), All Entities ESP
 ]]
 
 local success, WindUI = pcall(function()
@@ -20,7 +20,7 @@ local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
 local Window = WindUI:CreateWindow({
-    Title = "Hoverly Script | DOORS (All Floors & Rooms)",
+    Title = "Hoverly Script | DOORS (Advanced)",
     Icon = "door-closed",
     Author = "Hoverly Development",
     Theme = "Dark",
@@ -94,7 +94,6 @@ MainTab:Toggle({
     end
 })
 
--- Полный список всех монстров из игры и Rooms
 local monitoredEntities = {
     ["RushMoving"] = "Rush is coming! HIDE NOW!",
     ["AmbushMoving"] = "Ambush is coming! HIDE & GET READY TO CLICK!",
@@ -227,11 +226,11 @@ RunService.Stepped:Connect(function()
 end)
 
 -- =================================================================
--- 3. AUTO INTERACT & AUTO PUZZLES (Hotel, Mines, Rooms)
+-- 3. AUTO INTERACT (Игнор автоматов с фонариками и сидений без набега)
 -- =================================================================
 MainTab:Toggle({
     Title = "Auto Open Doors, Keys, Levers & Lockers",
-    Description = "Interacts with doors, keys, levers, switches, and lockers across Hotel, Mines, Backdoors & Rooms.",
+    Description = "Interacts with doors, keys, levers. Seats & lockers auto-hide ONLY during monster raids. Vending machines ignored.",
     Value = false,
     Callback = function(state)
         autoInteractEnabled = state
@@ -247,13 +246,27 @@ MainTab:Toggle({
                                 local actionText = obj.ActionText:lower()
                                 local parent = obj.Parent
                                 local parentName = parent and parent.Name:lower() or ""
+                                local grandparent = parent and parent.Parent
+                                local grandparentName = grandparent and grandparent.Name:lower() or ""
                                 
                                 local isIgnored = false
-                                local isHideAction = actionText:find("hide") or actionText:find("enter") or 
-                                                     parentName:find("wardrobe") or parentName:find("closet") or parentName:find("bed") or parentName:find("locker")
 
-                                if isHideAction and not monsterActive then
+                                -- 1. Полный игнор автоматов с фонариками (Vending Machines / Jeff / Flashlight shop)
+                                if parentName:find("vending") or parentName:find("shop") or parentName:find("jeff") or 
+                                   grandparentName:find("vending") or grandparentName:find("shop") or actionText:find("buy") then
                                     isIgnored = true
+                                end
+
+                                -- 2. Логика для укрытий (шкафы, гардеробы) и сидений (стулья, скамейки)
+                                local isHideOrSit = actionText:find("hide") or actionText:find("enter") or actionText:find("sit") or
+                                                     parentName:find("wardrobe") or parentName:find("closet") or parentName:find("bed") or 
+                                                     parentName:find("locker") or parentName:find("chair") or parentName:find("seat") or parentName:find("bench")
+
+                                -- Если это укрытие или сидение, то активируем ТОЛЬКО если идет монстр (monsterActive == true)
+                                if isHideOrSit then
+                                    if not monsterActive then
+                                        isIgnored = true
+                                    end
                                 end
 
                                 if not isIgnored then
@@ -325,7 +338,7 @@ MainTab:Toggle({
 })
 
 -- =================================================================
--- 4. MULTI-FLOOR & ROOMS ESP (Hotel, Backdoors, Mines, Rooms, etc.)
+-- 4. MULTI-FLOOR & ROOMS ESP
 -- =================================================================
 ESPTab:Toggle({
     Title = "ESP Doors, Keys, Levers, Books & Breakers",
@@ -338,7 +351,7 @@ ESPTab:Toggle({
 
 ESPTab:Toggle({
     Title = "ESP Closets / Hiding Spots / Lockers",
-    Description = "Highlights wardrobes, lockers, beds, and safe hiding spots (including The Rooms lockers) in purple.",
+    Description = "Highlights wardrobes, lockers, beds, and safe hiding spots in purple.",
     Value = false,
     Callback = function(state)
         espClosetsEnabled = state
@@ -374,11 +387,9 @@ task.spawn(function()
 
             espFolder:ClearAllChildren()
 
-            -- Сканирование комнат (CurrentRooms для всех этажей и Rooms)
             local roomsContainer = Workspace:FindFirstChild("CurrentRooms")
             if roomsContainer then
                 for _, room in pairs(roomsContainer:GetChildren()) do
-                    -- Двери
                     local door = room:FindFirstChild("Door")
                     if door and espItemsEnabled then
                         local targetPart = door:FindFirstChild("Knob") or door:FindFirstChild("Door") or door:FindFirstChildWhichIsA("BasePart")
@@ -393,7 +404,6 @@ task.spawn(function()
                         end
                     end
 
-                    -- Предметы и элементы комнат (Книги, Ключи, Предохранители, Рычаги в Rooms)
                     if espItemsEnabled then
                         for _, item in pairs(room:GetDescendants()) do
                             local itemName = item.Name:lower()
@@ -426,7 +436,6 @@ task.spawn(function()
                         end
                     end
 
-                    -- Шкафы, шкафчики Rooms (Lockers) и укрытия
                     if espClosetsEnabled then
                         for _, obj in pairs(room:GetDescendants()) do
                             local name = obj.Name:lower()
@@ -439,7 +448,7 @@ task.spawn(function()
                                     hl.OutlineColor = Color3.fromRGB(255, 255, 255)
                                     hl.FillTransparency = 0.4
                                     hl.Parent = espFolder
-                                    createBillboard(targetPart, "🗄️ locker / hiding", Color3.fromRGB(160, 32, 240))
+                                    createBillboard(targetPart, "🗄️ hiding spot", Color3.fromRGB(160, 32, 240))
                                 end
                             end
                         end
@@ -447,7 +456,6 @@ task.spawn(function()
                 end
             end
 
-            -- Глобальные ключи/предметы вне комнат
             if espItemsEnabled then
                 for _, obj in pairs(Workspace:GetDescendants()) do
                     if obj:IsA("Model") or obj:IsA("BasePart") then
@@ -478,7 +486,6 @@ task.spawn(function()
                 end
             end
 
-            -- ESP Игроков
             if espPlayersEnabled then
                 for _, player in pairs(Players:GetPlayers()) do
                     if player ~= LocalPlayer and player.Character then
@@ -497,7 +504,6 @@ task.spawn(function()
                 end
             end
 
-            -- ESP ВСЕХ МОНСТРОВ И СУЩНОСТЕЙ В ИГРЕ (Rooms: A-60, A-90, A-120; Hotel: Rush, Ambush, Figure, Eyes, Screech и т.д.)
             if espEntitiesEnabled then
                 for _, entity in pairs(Workspace:GetChildren()) do
                     local entityName = entity.Name
@@ -539,7 +545,7 @@ end)
 -- =================================================================
 WorldTab:Toggle({
     Title = "Fullbright",
-    Description = "Removes dark areas and makes everything bright (extremely useful in The Rooms / Mines).",
+    Description = "Removes dark areas and makes everything bright.",
     Value = false,
     Callback = function(state)
         if state then
@@ -557,7 +563,7 @@ WorldTab:Toggle({
 
 WindUI:Notify({
     Title = "Hoverly Script Updated",
-    Content = "Rooms ESP & All Entities ESP loaded successfully!",
+    Content = "Smart Hide/Sit & Vending Ignore loaded!",
     Duration = 4
 })
 
