@@ -105,6 +105,20 @@ local Games = {
         ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/Dmvs.lua",
         Icon = "shield-alert",
         KeyName = "dmvs"
+    },
+    {
+        Name = "Steal an egg",
+        PlaceId = {107778070777162},
+        ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/Sae.lua",
+        Icon = "egg",
+        KeyName = "sae"
+    },
+    {
+        Name = "Fling Things and people",
+        PlaceId = {6961824067},
+        ScriptUrl = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/main/Ftap.lua",
+        Icon = "hand-metal",
+        KeyName = "ftap"
     }
 }
 
@@ -279,4 +293,3 @@ task.spawn(function()
 end)
 
 Window:SelectTab(1)
-
