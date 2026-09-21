@@ -1,6 +1,6 @@
 --[[
-    Project: Hoverly Script | DOORS (All Floors + Rooms, Smart Hide/Sit & No Vending)
-    Features: Multi-Floor ESP, Smart Auto-Interact (Excludes Vending Machines, Smart Hide on Monster), All Entities ESP
+    Project: Hoverly Script | DOORS (All Floors + Rooms, Smart Hide/Sit & Fixed ESP/Interact)
+    Features: Multi-Floor ESP (Fixed), Smart Auto-Interact (No Paintings/Vending, Smart Hide on Monster), All Entities ESP
 ]]
 
 local success, WindUI = pcall(function()
@@ -226,11 +226,11 @@ RunService.Stepped:Connect(function()
 end)
 
 -- =================================================================
--- 3. AUTO INTERACT (Игнор автоматов с фонариками и сидений без набега)
+-- 3. AUTO INTERACT (Игнор автоматов, картин и сидений без набега)
 -- =================================================================
 MainTab:Toggle({
     Title = "Auto Open Doors, Keys, Levers & Lockers",
-    Description = "Interacts with doors, keys, levers. Seats & lockers auto-hide ONLY during monster raids. Vending machines ignored.",
+    Description = "Interacts with doors, keys, levers. Seats & lockers auto-hide ONLY during monster raids. Vending & Paintings ignored.",
     Value = false,
     Callback = function(state)
         autoInteractEnabled = state
@@ -251,18 +251,18 @@ MainTab:Toggle({
                                 
                                 local isIgnored = false
 
-                                -- 1. Полный игнор автоматов с фонариками (Vending Machines / Jeff / Flashlight shop)
+                                -- 1. Игнор автоматов с фонариками, магазинов и КАРИИН (Paintings / Portrait)
                                 if parentName:find("vending") or parentName:find("shop") or parentName:find("jeff") or 
+                                   parentName:find("painting") or parentName:find("portrait") or parentName:find("canvas") or
                                    grandparentName:find("vending") or grandparentName:find("shop") or actionText:find("buy") then
                                     isIgnored = true
                                 end
 
-                                -- 2. Логика для укрытий (шкафы, гардеробы) и сидений (стулья, скамейки)
+                                -- 2. Логика для укрытий и сидений
                                 local isHideOrSit = actionText:find("hide") or actionText:find("enter") or actionText:find("sit") or
                                                      parentName:find("wardrobe") or parentName:find("closet") or parentName:find("bed") or 
                                                      parentName:find("locker") or parentName:find("chair") or parentName:find("seat") or parentName:find("bench")
 
-                                -- Если это укрытие или сидение, то активируем ТОЛЬКО если идет монстр (monsterActive == true)
                                 if isHideOrSit then
                                     if not monsterActive then
                                         isIgnored = true
@@ -338,11 +338,11 @@ MainTab:Toggle({
 })
 
 -- =================================================================
--- 4. MULTI-FLOOR & ROOMS ESP
+-- 4. MULTI-FLOOR & ROOMS ESP (Fixed spawn/door bug)
 -- =================================================================
 ESPTab:Toggle({
     Title = "ESP Doors, Keys, Levers, Books & Breakers",
-    Description = "Highlights progression items across Hotel, Mines, Backdoors, Stairwell & The Rooms.",
+    Description = "Highlights progression items strictly inside active rooms.",
     Value = false,
     Callback = function(state)
         espItemsEnabled = state
@@ -387,6 +387,7 @@ task.spawn(function()
 
             espFolder:ClearAllChildren()
 
+            -- Работаем строго внутри CurrentRooms, чтобы убрать спавн-баги перед дверями извне
             local roomsContainer = Workspace:FindFirstChild("CurrentRooms")
             if roomsContainer then
                 for _, room in pairs(roomsContainer:GetChildren()) do
@@ -450,36 +451,6 @@ task.spawn(function()
                                     hl.Parent = espFolder
                                     createBillboard(targetPart, "🗄️ hiding spot", Color3.fromRGB(160, 32, 240))
                                 end
-                            end
-                        end
-                    end
-                end
-            end
-
-            if espItemsEnabled then
-                for _, obj in pairs(Workspace:GetDescendants()) do
-                    if obj:IsA("Model") or obj:IsA("BasePart") then
-                        local name = obj.Name:lower()
-                        local labelText = ""
-                        local color = Color3.fromRGB(255, 230, 0)
-
-                        if (name == "key" or name == "keycard" or name:find("key[v%d]")) and not name:find("painting") then
-                            labelText = "🔑 key"
-                        elseif name:find("lever") or name:find("breaker") then
-                            labelText = "⚙️ lever"
-                            color = Color3.fromRGB(255, 140, 0)
-                        end
-
-                        if labelText ~= "" then
-                            local targetPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
-                            if targetPart and targetPart:IsA("BasePart") then
-                                local hl = Instance.new("Highlight")
-                                hl.Adornee = obj
-                                hl.FillColor = color
-                                hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                                hl.FillTransparency = 0.4
-                                hl.Parent = espFolder
-                                createBillboard(targetPart, labelText, color)
                             end
                         end
                     end
@@ -563,7 +534,7 @@ WorldTab:Toggle({
 
 WindUI:Notify({
     Title = "Hoverly Script Updated",
-    Content = "Smart Hide/Sit & Vending Ignore loaded!",
+    Content = "Paintings & Spawn-ESP bugs fixed!",
     Duration = 4
 })
 
