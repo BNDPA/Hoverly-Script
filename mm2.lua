@@ -1,6 +1,6 @@
 --[[
-    Project: Hoverly Script | Murder Mystery 2
-    UI Library: Wind UI (Absolute Instant Force Shot Without Camera Lock)
+    Project: Hoverly Script | Murder Mystery 2 Complete Edition
+    UI Library: Wind UI
 ]]
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
@@ -10,10 +10,15 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+
 local LocalPlayer = Players.LocalPlayer
+local WorkspaceCamera = Workspace.CurrentCamera
 
 local Window = WindUI:CreateWindow({
-    Title = "Hoverly Script | Murder Mystery 2",
+    Title = "Hoverly Script | MM2",
     Icon = "terminal",
     Author = "Hoverly Development",
     Theme = "Dark",
@@ -24,26 +29,97 @@ local MainTab = Window:Tab({ Title = "Main & Visuals", Icon = "eye" })
 local FarmTab = Window:Tab({ Title = "Auto Farm & Coins", Icon = "coins" })
 local CombatTab = Window:Tab({ Title = "Combat & Aura", Icon = "crosshair" })
 local TrollTab = Window:Tab({ Title = "Troll & Misc", Icon = "user-x" })
+local OtherTab = Window:Tab({ Title = "Other (Fly/Noclip)", Icon = "settings" })
 local WorldTab = Window:Tab({ Title = "World Settings", Icon = "sun" })
 
 local espEnabled = false
-local autoFarmEnabled = false
-local autoFarmSpeed = 85
+local arrowsEnabled = false
 local smartAimbotEnabled = false
 local killAuraEnabled = false
 local antiFlingEnabled = false
-local autoShootKey = Enum.KeyCode.E
 local highlights = {}
 local nameTags = {}
+local playerArrows = {}
 
+_G.AutoShotEnabled = _G.AutoShotEnabled or false
+_G.AutoGrabGun = _G.AutoGrabGun or false
+local selectedSkinId = "0"
+
+-- === CHINA HAT ===
+getgenv().ChinaHatSettings = {
+    enabled = false, 
+    hatColor = Color3.fromRGB(255, 105, 180), 
+    lightColor = Color3.fromRGB(255, 105, 180), 
+    lightBrightness = 0, 
+    lightRange = 12, 
+    scale = Vector3.new(1.7, 1.1, 1.7), 
+}
+
+local chinaHatInstance = nil
+
+local function RemoveChinaHat(Character)
+    if Character then
+        local existingHat = Character:FindFirstChild("ChinaHatPart")
+        if existingHat then existingHat:Destroy() end
+    end
+    if chinaHatInstance and chinaHatInstance.Parent then
+        chinaHatInstance:Destroy()
+    end
+    chinaHatInstance = nil
+end
+
+local function CreateHat(Character)
+    RemoveChinaHat(Character)
+    if not getgenv().ChinaHatSettings.enabled then return end
+    local Head = Character:FindFirstChild("Head")
+    if not Head then return end 
+
+    local Cone = Instance.new("Part")
+    Cone.Name = "ChinaHatPart"
+    Cone.Size = Vector3.new(1, 1, 1)
+    Cone.Material = Enum.Material.Neon
+    Cone.Transparency = 0.2
+    Cone.Anchored = false
+    Cone.CanCollide = false
+    Cone.Color = getgenv().ChinaHatSettings.hatColor 
+
+    local Mesh = Instance.new("SpecialMesh")
+    Mesh.MeshType = Enum.MeshType.FileMesh
+    Mesh.MeshId = "rbxassetid://1033714"
+    Mesh.Scale = getgenv().ChinaHatSettings.scale 
+    Mesh.Parent = Cone
+
+    local Weld = Instance.new("Weld")
+    Weld.Part0 = Head
+    Weld.Part1 = Cone
+    Weld.C0 = CFrame.new(0, 0.9, 0)
+    Weld.Parent = Cone
+
+    local Light = Instance.new("PointLight")
+    Light.Color = getgenv().ChinaHatSettings.lightColor 
+    Light.Brightness = getgenv().ChinaHatSettings.lightBrightness 
+    Light.Range = getgenv().ChinaHatSettings.lightRange 
+    Light.Shadows = true
+    Light.Parent = Cone
+
+    Cone.Parent = Character
+    chinaHatInstance = Cone
+end
+
+LocalPlayer.CharacterAdded:Connect(function(Character)
+    if getgenv().ChinaHatSettings.enabled then
+        Character:WaitForChild("Head")
+        CreateHat(Character)
+    end
+end)
+
+-- === ROLES & ESP ===
 local function getRole(player)
     if not player or not player.Character then return "Innocent" end
     local char = player.Character
     local backpack = player:FindFirstChild("Backpack")
-
     local hasKnife = (backpack and backpack:FindFirstChild("Knife")) or char:FindFirstChild("Knife")
     local hasGun = (backpack and backpack:FindFirstChild("Gun")) or char:FindFirstChild("Gun")
-
     if hasKnife then return "Murderer" end
     if hasGun then return "Sheriff" end
     return "Innocent"
@@ -117,7 +193,6 @@ end)
 -- === 1. TAB: MAIN & VISUALS ===
 MainTab:Toggle({
     Title = "Player & Role ESP",
-    Description = "Highlights players and dynamically updates roles.",
     Value = false,
     Callback = function(state)
         espEnabled = state
@@ -131,6 +206,107 @@ MainTab:Toggle({
     end
 })
 
+MainTab:Toggle({
+    Title = "China Hat Visual",
+    Value = getgenv().ChinaHatSettings.enabled,
+    Callback = function(state)
+        getgenv().ChinaHatSettings.enabled = state
+        if state then
+            if LocalPlayer.Character then CreateHat(LocalPlayer.Character) end
+        else
+            RemoveChinaHat(LocalPlayer.Character)
+        end
+    end
+})
+
+MainTab:Toggle({
+    Title = "Off-Screen Arrows ESP",
+    Value = false,
+    Callback = function(state)
+        arrowsEnabled = state
+        if not state then
+            for _, arrow in pairs(playerArrows) do
+                if arrow and arrow.Drawing then arrow.Drawing.Visible = false end
+            end
+        end
+    end
+})
+
+local DistFromCenter = 80
+local TriangleHeight = 16
+local TriangleWidth = 16
+
+local function GetRelative(pos, char)
+    if not char or not char.PrimaryPart then return Vector2.new(0,0) end
+    local rootP = char.PrimaryPart.Position
+    local camP = WorkspaceCamera.CFrame.Position
+    local relative = CFrame.new(Vector3.new(rootP.X, camP.Y, rootP.Z), camP):PointToObjectSpace(pos)
+    return Vector2.new(relative.X, relative.Y)
+end
+
+local function RelativeToCenter(v)
+    return WorkspaceCamera.ViewportSize/2 - v
+end
+
+local function RotateVect(v, a)
+    a = math.rad(a)
+    local x = v.x * math.cos(a) - v.y * math.sin(a)
+    local y = v.x * math.sin(a) + v.y * math.cos(a)
+    return Vector2.new(x, y)
+end
+
+local function ShowArrow(PLAYER)
+    local arrowData = {
+        Drawing = Drawing.new("Triangle"),
+        IsOffScreen = false
+    }
+    arrowData.Drawing.Visible = false
+    arrowData.Drawing.Filled = true
+    arrowData.Drawing.Thickness = 1
+    playerArrows[PLAYER] = arrowData
+
+    local connection
+    connection = RunService.RenderStepped:Connect(function()
+        if not arrowsEnabled or not PLAYER or not PLAYER.Parent or not PLAYER.Character or not PLAYER.Character.PrimaryPart then
+            arrowData.Drawing.Visible = false
+            if not PLAYER or not PLAYER.Parent then
+                arrowData.Drawing:Remove()
+                playerArrows[PLAYER] = nil
+                connection:Disconnect()
+            end
+            return
+        end
+
+        local CHAR = PLAYER.Character
+        local HUM = CHAR:FindFirstChildOfClass("Humanoid")
+        if HUM and HUM.Health > 0 and CHAR.PrimaryPart then
+            arrowData.Drawing.Color = getRoleColor(PLAYER)
+            _, vis = WorkspaceCamera:WorldToViewportPoint(CHAR.PrimaryPart.Position)
+            if not vis then
+                local rel = GetRelative(CHAR.PrimaryPart.Position, LocalPlayer.Character)
+                local direction = rel.unit
+                local base = direction * DistFromCenter
+                local sideLength = TriangleWidth / 2
+                local baseL = base + RotateVect(direction, 90) * sideLength
+                local baseR = base + RotateVect(direction, -90) * sideLength
+                local tip = direction * (DistFromCenter + TriangleHeight)
+
+                arrowData.Drawing.PointA = RelativeToCenter(baseL)
+                arrowData.Drawing.PointB = RelativeToCenter(baseR)
+                arrowData.Drawing.PointC = RelativeToCenter(tip)
+                arrowData.Drawing.Visible = true
+            else
+                arrowData.Drawing.Visible = false
+            end
+        else
+            arrowData.Drawing.Visible = false
+        end
+    end)
+end
+
+for _, v in pairs(Players:GetPlayers()) do if v ~= LocalPlayer then ShowArrow(v) end end
+Players.PlayerAdded:Connect(function(v) if v ~= LocalPlayer then ShowArrow(v) end end)
+
 for _, p in ipairs(Players:GetPlayers()) do
     if p ~= LocalPlayer then
         if p.Character then applyESP(p) end
@@ -143,483 +319,463 @@ Players.PlayerAdded:Connect(function(p)
     p.CharacterRemoving:Connect(function() removeESP(p) end)
 end)
 
--- === 2. TAB: AUTO FARM & COINS ===
-FarmTab:Toggle({
-    Title = "Auto Farm Coins (With Noclip)",
-    Description = "Smoothly flies continuously to coins without pauses.",
-    Value = false,
-    Callback = function(state)
-        autoFarmEnabled = state
-        local char = LocalPlayer.Character
-        if char then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
-                end
-            end
-        end
-    end
-})
 
-FarmTab:Dropdown({
-    Title = "Farm Speed",
-    Values = {"Slow", "Medium", "Fast"},
-    Default = "Fast",
-    Callback = function(selected)
-        if selected == "Slow" then autoFarmSpeed = 40
-        elseif selected == "Medium" then autoFarmSpeed = 60
-        elseif selected == "Fast" then autoFarmSpeed = 85 end
-    end
-})
+-- === 2. TAB: AUTO FARM & COINS (С исправлениями) ===
+local FarmSettings = {
+    AutoFarmEnabled = false,
+    TweenSpeed = 25,
+    AutoReset = true,
+    UndergroundOffset = -10, -- Смещение под землю по умолчанию
+    SitMode = true,          -- Сидячий режим (предотвращает баги камеры и падения)
+    MaxDistance = 600,
+    CoinLimit = 40,
+}
+local FarmState = { isFarming = false, ignoredCoins = {}, currentTween = nil }
 
-local function getClosestCoin()
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return nil end
-
-    local closestCoin = nil
-    local minDistance = math.huge
-
-    for _, object in ipairs(Workspace:GetDescendants()) do
-        if object.Name == "CoinContainer" or object.Name == "Coin" or object.Name == "CoinServer" then
-            local coinPart = object:IsA("BasePart") and object or object:FindFirstChildWhichIsA("BasePart")
-            if coinPart and coinPart.Parent then
-                local dist = (hrp.Position - coinPart.Position).Magnitude
-                if dist < minDistance then
-                    minDistance = dist
-                    closestCoin = coinPart
-                end
-            end
-        end
-    end
-    return closestCoin
+local function getTorso(char)
+    if not char then return nil end
+    return char:FindFirstChild("Torso") or char:FindFirstChild("LowerTorso") or char:FindFirstChild("HumanoidRootPart")
 end
 
-RunService.Heartbeat:Connect(function(dt)
-    if not autoFarmEnabled then return end
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    
-    if hrp and hum and hum.Health > 0 then
-        for _, part in ipairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
+local function getCurrentCoins()
+    local ok, res = pcall(function()
+        local gui = LocalPlayer.PlayerGui:FindFirstChild("MainGUI")
+        if not gui then return 0 end
+        return tonumber(gui.Game.CoinBags.Container.Coin.CurrencyFrame.Icon.Coins.Text) or 0
+    end)
+    return ok and res or 0
+end
 
-        local targetCoin = getClosestCoin()
-        if targetCoin and targetCoin.Parent then
-            local targetPos = targetCoin.Position
-            
-            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-            
-            hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(targetPos), math.min(dt * (autoFarmSpeed / 8), 1))
+local function isRoundOver()
+    local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if pGui and pGui:FindFirstChild("Victory") then
+        for _, child in pairs(pGui.Victory:GetChildren()) do
+            if child:IsA("GuiObject") and child.Visible then return true end
         end
     end
-end)
+    return false
+end
+
+local function isBagFull()
+    local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if pGui and pGui:FindFirstChild("MainGUI") then
+        local lobby = pGui.MainGUI:FindFirstChild("Lobby")
+        if lobby and lobby:FindFirstChild("Dock") and lobby.Dock:FindFirstChild("CoinBags") then
+            local n = lobby.Dock.CoinBags:FindFirstChild("FullBagNotification")
+            if n and n.Visible then return true end
+        end
+    end
+    return false
+end
+
+local function getNearestCoin(torso)
+    local container = nil
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj.Name == "CoinContainer" then container = obj break end
+    end
+    if not container then return nil end
+
+    local nearestCoin = nil
+    local minDist = math.huge
+    for _, coin in pairs(container:GetChildren()) do
+        if coin.Name == "Coin_Server" and coin:IsA("BasePart") and not FarmState.ignoredCoins[coin] then
+            local dist = (torso.Position - coin.Position).Magnitude
+            if dist < minDist and dist <= FarmSettings.MaxDistance then
+                minDist = dist
+                nearestCoin = coin
+            end
+        end
+    end
+    return nearestCoin
+end
+
+local function startFarming()
+    if FarmState.isFarming then return end
+    FarmState.isFarming = true
+    table.clear(FarmState.ignoredCoins)
+
+    task.spawn(function()
+        while FarmState.isFarming do
+            task.wait()
+            pcall(function()
+                local char = LocalPlayer.Character
+                if not char then return end
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                local torso = getTorso(char)
+                local humanoid = char:FindFirstChild("Humanoid")
+                if not hrp or not torso or not humanoid or humanoid.Health <= 0 then return end
+
+                if isRoundOver() or isBagFull() then task.wait(1) return end
+                
+                local container = nil
+                for _, obj in pairs(Workspace:GetDescendants()) do
+                    if obj.Name == "CoinContainer" then container = obj break end
+                end
+                
+                -- Если все монеты собраны
+                local coinsLeft = false
+                if container then
+                    for _, c in pairs(container:GetChildren()) do
+                        if c.Name == "Coin_Server" then coinsLeft = true break end
+                    end
+                end
+
+                if not coinsLeft or getCurrentCoins() >= FarmSettings.CoinLimit then
+                    if FarmSettings.AutoReset then
+                        humanoid.Health = 0
+                        task.wait(4)
+                    end
+                    return
+                end
+                
+                local targetCoin = getNearestCoin(torso)
+                if not targetCoin or not targetCoin:IsDescendantOf(Workspace) then task.wait(0.5) return end
+
+                local target = targetCoin.Position + Vector3.new(0, FarmSettings.UndergroundOffset, 0)
+                
+                for _, part in pairs(char:GetDescendants()) do 
+                    if part:IsA("BasePart") and part.CanCollide then 
+                        part.CanCollide = false 
+                    end 
+                end
+                
+                humanoid.PlatformStand = true
+                if FarmSettings.SitMode then
+                    humanoid.Sit = true
+                end
+
+                local tween = TweenService:Create(hrp, TweenInfo.new((hrp.Position - target).Magnitude / FarmSettings.TweenSpeed, Enum.EasingStyle.Linear), {CFrame = CFrame.new(target)})
+                FarmState.currentTween = tween
+                tween:Play()
+                
+                local conn
+                conn = RunService.Heartbeat:Connect(function()
+                    if firetouchinterest then
+                        pcall(function() firetouchinterest(torso, targetCoin, 0) firetouchinterest(torso, targetCoin, 1) end)
+                    end
+                end)
+                
+                tween.Completed:Wait()
+                if conn then conn:Disconnect() end
+                FarmState.ignoredCoins[targetCoin] = true
+                task.delay(5, function() FarmState.ignoredCoins[targetCoin] = nil end)
+            end)
+        end
+    end)
+end
+
+local function stopFarming()
+    FarmState.isFarming = false
+    if FarmState.currentTween then pcall(function() FarmState.currentTween:Cancel() end) end
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid.PlatformStand = false
+        char.Humanoid.Sit = false
+    end
+end
+
+FarmTab:Toggle({
+    Title = "Auto Farm Coins",
+    Value = FarmSettings.AutoFarmEnabled,
+    Callback = function(state)
+        FarmSettings.AutoFarmEnabled = state
+        if state then startFarming() else stopFarming() end
+    end
+})
+
+FarmTab:Slider({
+    Title = "Tween Speed",
+    Min = 10,
+    Max = 100,
+    Default = FarmSettings.TweenSpeed,
+    Callback = function(value) FarmSettings.TweenSpeed = value end
+})
+
+FarmTab:Slider({
+    Title = "Underground Offset",
+    Min = -30,
+    Max = 10,
+    Default = FarmSettings.UndergroundOffset,
+    Callback = function(value) FarmSettings.UndergroundOffset = value end
+})
+
+FarmTab:Toggle({
+    Title = "Sit Mode (Fixes Camera/Fall glitches)",
+    Value = FarmSettings.SitMode,
+    Callback = function(state) FarmSettings.SitMode = state end
+})
+
+FarmTab:Toggle({
+    Title = "Auto Reset when Bag Full / Coins Done",
+    Value = FarmSettings.AutoReset,
+    Callback = function(state) FarmSettings.AutoReset = state end
+})
+
+FarmTab:Button({
+    Title = "Teleport to Map",
+    Callback = function()
+        pcall(function()
+            for _, obj in pairs(Workspace:GetChildren()) do
+                if obj:FindFirstChild("CoinContainer") or obj.Name == "Map" then
+                    local spawnPart = obj:FindFirstChild("Spawn") or obj:FindFirstChildWhichIsA("BasePart")
+                    if spawnPart and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = spawnPart.CFrame + Vector3.new(0, 5, 0)
+                        break
+                    end
+                end
+            end
+        end)
+    end
+})
+
 
 -- === 3. TAB: COMBAT & AURA ===
 CombatTab:Toggle({
     Title = "Smart Role Aimbot (Wallcheck)",
-    Description = "Automatically aims at the enemy role.",
     Value = false,
-    Callback = function(state)
-        smartAimbotEnabled = state
-    end
+    Callback = function(state) smartAimbotEnabled = state end
 })
 
 CombatTab:Toggle({
     Title = "Murderer Kill Aura",
-    Description = "Automatically stabs targets in a 5-stud radius.",
     Value = false,
-    Callback = function(state)
-        killAuraEnabled = state
-    end
+    Callback = function(state) killAuraEnabled = state end
 })
 
--- Абсолютный Force Shot: стреляет напрямую в убийцу БЕЗ наводки камеры
-local function absoluteForceShoot()
-    local myRole = getRole(LocalPlayer)
-    if myRole ~= "Sheriff" then
-        WindUI:Notify({ Title = "Force Shot", Content = "You are not the Sheriff!", Duration = 3 })
-        return
-    end
+CombatTab:Toggle({
+    Title = "Auto Grab Dropped Gun",
+    Description = "Teleports dropped Sheriff gun directly to you.",
+    Value = _G.AutoGrabGun,
+    Callback = function(state) _G.AutoGrabGun = state end
+})
 
-    local myChar = LocalPlayer.Character
-    local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
-    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-    if not myHRP or not myHum or myHum.Health <= 0 then return end
+RunService.Heartbeat:Connect(function()
+    if not _G.AutoGrabGun then return end
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
 
-    local gun = myChar:FindFirstChild("Gun") or (LocalPlayer:FindFirstChild("Backpack") and LocalPlayer.Backpack:FindFirstChild("Gun"))
-    if not gun then
-        WindUI:Notify({ Title = "Force Shot", Content = "Gun not found!", Duration = 3 })
-        return
-    end
-
-    if gun.Parent ~= myChar then myHum:EquipTool(gun) end
-
-    local murdererPlayer = nil
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and getRole(p) == "Murderer" then
-            murdererPlayer = p
-            break
+    for _, obj in pairs(Workspace:GetChildren()) do
+        if obj.Name == "GunDrop" or (obj:IsA("Tool") and obj.Name == "Gun") then
+            local handle = obj:FindFirstChild("Handle") or obj
+            if handle and handle:IsA("BasePart") then
+                handle.CFrame = hrp.CFrame
+                pcall(function()
+                    firetouchinterest(hrp, handle, 0)
+                    firetouchinterest(hrp, handle, 1)
+                end)
+            end
         end
-    end
-
-    if murdererPlayer and murdererPlayer.Character then
-        local targetHRP = murdererPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if targetHRP then
-            pcall(function()
-                gun:Activate()
-                if gun:FindFirstChild("Shoot") then
-                    -- Моментальный выстрел прямо в позицию убийцы без поворота камеры
-                    gun.Shoot:FireServer(targetHRP.Position)
-                end
-            end)
-            WindUI:Notify({ Title = "Force Shot", Content = "Absolute Force Shot sent to Murderer!", Duration = 2 })
-        end
-    else
-        WindUI:Notify({ Title = "Force Shot", Content = "Murderer not found on map!", Duration = 2 })
-    end
-end
-
-CombatTab:Button({
-    Title = "Absolute Force Shot (No Camera Move)",
-    Description = "Instantly fires at the murderer from anywhere without moving your camera.",
-    Callback = function()
-        absoluteForceShoot()
-    end
-})
-
-CombatTab:Keybind({
-    Title = "Force Shot Keybind",
-    Description = "Press this key to instantly execute a force shot.",
-    Value = Enum.KeyCode.E,
-    Callback = function(key)
-        autoShootKey = key
-    end
-})
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == autoShootKey then
-        absoluteForceShoot()
     end
 end)
 
-local clickCount = 0
-local lastClickTime = 0
+local function ExecuteAutoShot()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum or hum.Health <= 0 then return end
 
-CombatTab:Button({
-    Title = "Kill All (Murder Only) + Fast Clicks & Big Hitboxes",
-    Description = "Click screen 12 times quickly to activate. No knife cooldown & 1000 studs hitboxes.",
-    Callback = function()
-        local myRole = getRole(LocalPlayer)
-        if myRole ~= "Murderer" then
-            WindUI:Notify({ Title = "Error", Content = "You are not the Murderer!", Duration = 3 })
-            return
-        end
+    local knife = LocalPlayer.Backpack:FindFirstChild("Knife") or char:FindFirstChild("Knife")
+    local gun = LocalPlayer.Backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun")
 
-        WindUI:Notify({ 
-            Title = "Action Required", 
-            Content = "Tap/Click your screen 12 times very quickly to confirm!", 
-            Duration = 3 
-        })
-
-        clickCount = 0
-        lastClickTime = tick()
-
-        local connection
-        connection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                local currentTime = tick()
-                if currentTime - lastClickTime < 0.4 then
-                    clickCount = clickCount + 1
-                else
-                    clickCount = 1
-                end
-                lastClickTime = currentTime
-
-                if clickCount >= 12 then
-                    connection:Disconnect()
-                    
-                    local myChar = LocalPlayer.Character
-                    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-                    local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
-                    
-                    if not myHRP or not myHum or myHum.Health <= 0 then return end
-
-                    local knife = myChar:FindFirstChild("Knife") or (LocalPlayer:FindFirstChild("Backpack") and LocalPlayer.Backpack:FindFirstChild("Knife"))
-                    if not knife then
-                        WindUI:Notify({ Title = "Error", Content = "Knife not found in inventory!", Duration = 3 })
-                        return
-                    end
-
-                    if knife.Parent ~= myChar then myHum:EquipTool(knife) end
+    if knife then
+        if knife.Parent ~= char then hum:EquipTool(knife) task.wait() end
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then
+                local tHRP = p.Character:FindFirstChild("HumanoidRootPart")
+                if tHRP then
+                    local torso = p.Character:FindFirstChild("UpperTorso") or tHRP
+                    local vel = tHRP.AssemblyLinearVelocity
+                    local dist = (torso.Position - hrp.Position).Magnitude
+                    local predictedPos = torso.Position + Vector3.new(vel.X, 0, vel.Z) * (dist / 65)
 
                     pcall(function()
-                        for _, v in pairs(knife:GetDescendants()) do
-                            if v:IsA("NumberValue") or v:IsA("IntValue") then
-                                if v.Name:lower():find("cooldown") or v.Name:lower():find("delay") or v.Name:lower():find("rate") then
-                                    v.Value = 0
-                                end
-                            end
-                        end
-                    end)
-
-                    local originalCFrame = myHRP.CFrame
-                    
-                    for _, part in ipairs(myChar:GetDescendants()) do
-                        if part:IsA("BasePart") then part.CanCollide = false end
-                    end
-
-                    local originalSizes = {}
-
-                    task.spawn(function()
-                        for _, player in ipairs(Players:GetPlayers()) do
-                            if player ~= LocalPlayer and player.Character then
-                                local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
-                                if targetHRP then
-                                    originalSizes[player] = targetHRP.Size
-                                    targetHRP.Size = Vector3.new(1000, 1000, 1000)
-                                    targetHRP.Transparency = 0.9
-                                    targetHRP.CanCollide = false
-                                end
-                            end
-                        end
-
-                        for _, player in ipairs(Players:GetPlayers()) do
-                            if player ~= LocalPlayer and player.Character then
-                                local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
-                                local targetHum = player.Character:FindFirstChildOfClass("Humanoid")
-                                
-                                if targetHRP and targetHum and targetHum.Health > 0 then
-                                    myHRP.CFrame = targetHRP.CFrame * CFrame.new(0, 0, 1)
-                                    task.wait(0.02)
-                                    
-                                    for i = 1, 3 do
-                                        pcall(function()
-                                            knife:Activate()
-                                            if knife:FindFirstChild("Stab") then
-                                                knife.Stab:FireServer()
-                                            end
-                                        end)
-                                    end
-                                    task.wait(0.05)
-                                end
-                            end
-                        end
-
-                        for player, origSize in pairs(originalSizes) do
-                            if player and player.Character then
-                                local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
-                                if targetHRP then
-                                    targetHRP.Size = origSize
-                                    targetHRP.Transparency = 1
-                                    targetHRP.CanCollide = true
-                                end
-                            end
-                        end
-
-                        myHRP.CFrame = originalCFrame
-                        myHRP.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                        myHRP.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                        
-                        for _, part in ipairs(myChar:GetDescendants()) do
-                            if part:IsA("BasePart") then part.CanCollide = true end
-                        end
-
-                        WindUI:Notify({
-                            Title = "Kill All Completed",
-                            Content = "Hitboxes expanded, cooldown removed, targets eliminated!",
-                            Duration = 3
-                        })
+                        local knifeThrown = knife:WaitForChild("Events"):WaitForChild("KnifeThrown")
+                        knifeThrown:FireServer(CFrame.new(hrp.Position, predictedPos), {CFrame.new(predictedPos)})
                     end)
                 end
             end
-        end)
-
-        task.delay(3, function()
-            if connection and clickCount < 12 then
-                connection:Disconnect()
-                WindUI:Notify({ Title = "Timeout", Content = "Too slow! Click 12 times faster next time.", Duration = 3 })
-            end
-        end)
-    end
-})
-
-task.spawn(function()
-    while task.wait(0.05) do
-        if killAuraEnabled then
-            local myChar = LocalPlayer.Character
-            local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
-            local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-
-            if myHRP and myHum and myHum.Health > 0 then
-                local knife = myChar:FindFirstChild("Knife") or (LocalPlayer:FindFirstChild("Backpack") and LocalPlayer.Backpack:FindFirstChild("Knife"))
-                if knife then
-                    if knife.Parent ~= myChar then myHum:EquipTool(knife) end
-                    for _, player in ipairs(Players:GetPlayers()) do
-                        if player ~= LocalPlayer and player.Character then
-                            local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
-                            local targetHum = player.Character:FindFirstChildOfClass("Humanoid")
-                            if targetHRP and targetHum and targetHum.Health > 0 then
-                                if (myHRP.Position - targetHRP.Position).Magnitude <= 5 then
-                                    pcall(function()
-                                        knife:Activate()
-                                        if knife:FindFirstChild("Stab") then knife.Stab:FireServer() end
-                                    end)
-                                end
-                            end
-                        end
-                    end
+        end
+    elseif gun then
+        if gun.Parent ~= char then hum:EquipTool(gun) task.wait() end
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and getRole(p) == "Murderer" and p.Character then
+                local tHRP = p.Character:FindFirstChild("HumanoidRootPart")
+                if tHRP then
+                    pcall(function()
+                        gun:WaitForChild("Shoot"):FireServer(CFrame.new(hrp.Position, tHRP.Position), {CFrame.new(tHRP.Position)})
+                    end)
                 end
             end
         end
     end
-end)
-
-local function isTargetVisible(targetPart)
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("Head") then return false end
-
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = RaycastFilterType.Exclude
-    raycastParams.FilterDescendantsInstances = {char, targetPart.Parent}
-    raycastParams.IgnoreWater = true
-
-    local origin = Workspace.CurrentCamera.CFrame.Position
-    local direction = (targetPart.Position - origin)
-
-    local result = Workspace:Raycast(origin, direction, raycastParams)
-    return result == nil
 end
 
-RunService.RenderStepped:Connect(function()
-    if smartAimbotEnabled then
-        local myRole = getRole(LocalPlayer)
-        local targetPlayer = nil
+CombatTab:Toggle({
+    Title = "Auto Shot (Knife/Gun Predictor)",
+    Value = false,
+    Callback = function(state) _G.AutoShotEnabled = state end
+})
 
-        if myRole == "Sheriff" then
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and getRole(p) == "Murderer" then targetPlayer = p break end
-            end
-        elseif myRole == "Murderer" then
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and getRole(p) == "Sheriff" then targetPlayer = p break end
-            end
-        end
-
-        if targetPlayer and targetPlayer.Character then
-            local targetHead = targetPlayer.Character:FindFirstChild("Head") or targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if targetHead and isTargetVisible(targetHead) then
-                Workspace.CurrentCamera.CFrame = CFrame.new(Workspace.CurrentCamera.CFrame.Position, targetHead.Position)
-            end
-        end
-    end
+RunService.Heartbeat:Connect(function()
+    if _G.AutoShotEnabled then ExecuteAutoShot() end
 end)
 
--- === 4. TAB: TROLL & MISC ===
-TrollTab:Toggle({
-    Title = "Anti-Fling",
-    Description = "Protects you from being flung by other players.",
-    Value = false,
-    Callback = function(state)
-        antiFlingEnabled = state
+CombatTab:Textbox({
+    Title = "Weapon Skin ID (Asset ID)",
+    Default = "0",
+    Callback = function(value) selectedSkinId = value end
+})
+
+CombatTab:Button({
+    Title = "Apply Skin Changer",
+    Callback = function()
+        local char = LocalPlayer.Character
+        local backpack = LocalPlayer.Backpack
+        if not char then return end
+        for _, tool in ipairs({backpack:FindFirstChild("Knife"), backpack:FindFirstChild("Gun"), char:FindFirstChild("Knife"), char:FindFirstChild("Gun")}) do
+            if tool and tool:FindFirstChild("Handle") then
+                for _, child in ipairs(tool.Handle:GetChildren()) do
+                    if child:IsA("SpecialMesh") or child:IsA("Texture") then
+                        child.TextureId = "rbxassetid://" .. tostring(selectedSkinId)
+                    end
+                end
+            end
+        end
     end
 })
 
 RunService.Heartbeat:Connect(function()
-    if antiFlingEnabled then
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character then
-                local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                    hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    if killAuraEnabled then
+        local myChar = LocalPlayer.Character
+        local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        if myHRP then
+            local knife = myChar:FindFirstChild("Knife") or (LocalPlayer:FindFirstChild("Backpack") and LocalPlayer.Backpack:FindFirstChild("Knife"))
+            if knife then
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character then
+                        local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
+                        if targetHRP and (myHRP.Position - targetHRP.Position).Magnitude <= 5 then
+                            pcall(function() knife:Activate() knife.Stab:FireServer() end)
+                        end
+                    end
                 end
             end
         end
     end
 end)
 
-local selectedFlingTarget = nil
-local playerNames = {}
-for _, p in ipairs(Players:GetPlayers()) do
-    if p ~= LocalPlayer then table.insert(playerNames, p.Name) end
-end
 
-TrollTab:Dropdown({
-    Title = "Select Player to Fling",
-    Values = playerNames,
-    Callback = function(selected)
-        selectedFlingTarget = Players:FindFirstChild(selected)
-    end
+-- === 4. TAB: TROLL & MISC ===
+TrollTab:Toggle({
+    Title = "Anti-Fling (Disable Collisions)",
+    Description = "Completely removes collision with other players.",
+    Value = false,
+    Callback = function(state) antiFlingEnabled = state end
 })
 
-TrollTab:Button({
-    Title = "Fling Player (Smart Loop)",
-    Callback = function()
-        if not selectedFlingTarget or not selectedFlingTarget.Character then return end
-        local targetHRP = selectedFlingTarget.Character:FindFirstChild("HumanoidRootPart")
-        local myChar = LocalPlayer.Character
-        local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+RunService.Stepped:Connect(function()
+    if not antiFlingEnabled then return end
+    local myChar = LocalPlayer.Character
+    if not myChar then return end
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            for _, part in ipairs(player.Character:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+
+-- === 5. TAB: OTHER (FLY & NOCLIP) ===
+local flyEnabled = false
+local noclipEnabled = false
+local flySpeed = 50
+local bg, bv
+
+OtherTab:Toggle({
+    Title = "Fly",
+    Value = false,
+    Callback = function(state)
+        flyEnabled = state
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
         
-        if targetHRP and myHRP then
-            local originalPos = myHRP.CFrame
-            local startPos = targetHRP.Position
-            local connection
-            local timeElapsed = 0
+        if flyEnabled then
+            bg = Instance.new("BodyGyro", hrp)
+            bg.P = 9e4
+            bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+            bg.cframe = hrp.CFrame
             
-            connection = RunService.Heartbeat:Connect(function(dt)
-                timeElapsed = timeElapsed + dt
-                if targetHRP and myHRP and selectedFlingTarget.Character and selectedFlingTarget.Character:FindFirstChildOfClass("Humanoid").Health > 0 then
-                    myHRP.CFrame = targetHRP.CFrame * CFrame.new(math.random(-4, 4), math.random(-2, 2), math.random(-4, 4))
-                    myHRP.AssemblyLinearVelocity = Vector3.new(99999, 99999, 99999)
-                    myHRP.AssemblyAngularVelocity = Vector3.new(99999, 99999, 99999)
+            bv = Instance.new("BodyVelocity", hrp)
+            bv.velocity = Vector3.new(0, 0, 0)
+            bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
+            
+            task.spawn(function()
+                while flyEnabled do
+                    RunService.RenderStepped:Wait()
+                    local cam = WorkspaceCamera.CFrame
+                    local moveDir = Vector3.new()
+                    if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.LookVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.LookVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.RightVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.RightVector end
                     
-                    local distance = (targetHRP.Position - startPos).Magnitude
-                    if distance > 35 or timeElapsed > 4 then
-                        connection:Disconnect()
-                        if myHRP then
-                            myHRP.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                            myHRP.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                            myHRP.CFrame = originalPos
-                        end
-                    end
-                else
-                    connection:Disconnect()
-                    if myHRP then
-                        myHRP.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                        myHRP.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                        myHRP.CFrame = originalPos
+                    if bv and bg then
+                        bv.velocity = moveDir * flySpeed
+                        bg.cframe = cam
                     end
                 end
             end)
+        else
+            if bg then bg:Destroy() bg = nil end
+            if bv then bv:Destroy() bv = nil end
         end
     end
 })
 
--- === 5. TAB: WORLD SETTINGS ===
-WorldTab:Toggle({
-    Title = "Fullbright (Disable Darkness)",
-    Description = "Brightens up the game map.",
+OtherTab:Slider({
+    Title = "Fly Speed",
+    Min = 10,
+    Max = 150,
+    Default = 50,
+    Callback = function(v) flySpeed = v end
+})
+
+OtherTab:Toggle({
+    Title = "Noclip",
     Value = false,
     Callback = function(state)
-        if state then
-            Lighting.Ambient = Color3.fromRGB(255, 255, 255)
-            Lighting.Brightness = 2
-        else
-            Lighting.Ambient = Color3.fromRGB(128, 128, 128)
-            Lighting.Brightness = 1
-        end
+        noclipEnabled = state
     end
 })
 
-WindUI:Notify({
-    Title = "Hoverly Script Loaded",
-    Content = "Absolute Force Shot mode activated!",
-    Duration = 4
+RunService.Stepped:Connect(function()
+    if noclipEnabled and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+
+-- === 6. TAB: WORLD SETTINGS ===
+WorldTab:Toggle({
+    Title = "Fullbright (Disable Darkness)",
+    Value = false,
+    Callback = function(state)
+        Lighting.Ambient = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(128, 128, 128)
+        Lighting.Brightness = state and 2 or 1
+    end
 })
+
+WindUI:Notify({ Title = "Hoverly Script Loaded", Content = "Successfully updated with AutoFarm fixes & Fly/Noclip!", Duration = 4 })
 
