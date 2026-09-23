@@ -1,5 +1,5 @@
 --[[
-    Project: Hoverly Script | Murder Mystery 2 Complete Edition
+    Project: Hoverly Script | Murder Mystery 2
     UI Library: Wind UI
 ]]
 
@@ -12,7 +12,6 @@ local Lighting = game:GetService("Lighting")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 local WorkspaceCamera = Workspace.CurrentCamera
@@ -26,10 +25,10 @@ local Window = WindUI:CreateWindow({
 })
 
 local MainTab = Window:Tab({ Title = "Main & Visuals", Icon = "eye" })
-local FarmTab = Window:Tab({ Title = "Auto Farm & Coins", Icon = "coins" })
+local FarmTab = Window:Tab({ Title = "Auto Farm", Icon = "coins" })
 local CombatTab = Window:Tab({ Title = "Combat & Aura", Icon = "crosshair" })
 local TrollTab = Window:Tab({ Title = "Troll & Misc", Icon = "user-x" })
-local OtherTab = Window:Tab({ Title = "Other (Fly/Noclip)", Icon = "settings" })
+local OtherTab = Window:Tab({ Title = "Other", Icon = "settings" })
 local WorldTab = Window:Tab({ Title = "World Settings", Icon = "sun" })
 
 local espEnabled = false
@@ -320,13 +319,11 @@ Players.PlayerAdded:Connect(function(p)
 end)
 
 
--- === 2. TAB: AUTO FARM & COINS (С исправлениями) ===
+-- === 2. TAB: AUTO FARM (Прямой полет к монете) ===
 local FarmSettings = {
     AutoFarmEnabled = false,
     TweenSpeed = 25,
     AutoReset = true,
-    UndergroundOffset = -10, -- Смещение под землю по умолчанию
-    SitMode = true,          -- Сидячий режим (предотвращает баги камеры и падения)
     MaxDistance = 600,
     CoinLimit = 40,
 }
@@ -412,7 +409,6 @@ local function startFarming()
                     if obj.Name == "CoinContainer" then container = obj break end
                 end
                 
-                -- Если все монеты собраны
                 local coinsLeft = false
                 if container then
                     for _, c in pairs(container:GetChildren()) do
@@ -431,7 +427,8 @@ local function startFarming()
                 local targetCoin = getNearestCoin(torso)
                 if not targetCoin or not targetCoin:IsDescendantOf(Workspace) then task.wait(0.5) return end
 
-                local target = targetCoin.Position + Vector3.new(0, FarmSettings.UndergroundOffset, 0)
+                -- Полет прямо к позиции монеты
+                local target = targetCoin.Position
                 
                 for _, part in pairs(char:GetDescendants()) do 
                     if part:IsA("BasePart") and part.CanCollide then 
@@ -440,9 +437,6 @@ local function startFarming()
                 end
                 
                 humanoid.PlatformStand = true
-                if FarmSettings.SitMode then
-                    humanoid.Sit = true
-                end
 
                 local tween = TweenService:Create(hrp, TweenInfo.new((hrp.Position - target).Magnitude / FarmSettings.TweenSpeed, Enum.EasingStyle.Linear), {CFrame = CFrame.new(target)})
                 FarmState.currentTween = tween
@@ -489,20 +483,6 @@ FarmTab:Slider({
     Max = 100,
     Default = FarmSettings.TweenSpeed,
     Callback = function(value) FarmSettings.TweenSpeed = value end
-})
-
-FarmTab:Slider({
-    Title = "Underground Offset",
-    Min = -30,
-    Max = 10,
-    Default = FarmSettings.UndergroundOffset,
-    Callback = function(value) FarmSettings.UndergroundOffset = value end
-})
-
-FarmTab:Toggle({
-    Title = "Sit Mode (Fixes Camera/Fall glitches)",
-    Value = FarmSettings.SitMode,
-    Callback = function(state) FarmSettings.SitMode = state end
 })
 
 FarmTab:Toggle({
@@ -777,5 +757,5 @@ WorldTab:Toggle({
     end
 })
 
-WindUI:Notify({ Title = "Hoverly Script Loaded", Content = "Successfully updated with AutoFarm fixes & Fly/Noclip!", Duration = 4 })
+WindUI:Notify({ Title = "Hoverly Script Loaded", Content = "Direct AutoFarm & Fly/Noclip ready!", Duration = 4 })
 
