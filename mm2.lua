@@ -319,7 +319,7 @@ Players.PlayerAdded:Connect(function(p)
 end)
 
 
--- === 2. TAB: AUTO FARM (Прямой полет к монете) ===
+-- === 2. TAB: AUTO FARM (Прямо к монете) ===
 local FarmSettings = {
     AutoFarmEnabled = false,
     TweenSpeed = 25,
@@ -427,7 +427,7 @@ local function startFarming()
                 local targetCoin = getNearestCoin(torso)
                 if not targetCoin or not targetCoin:IsDescendantOf(Workspace) then task.wait(0.5) return end
 
-                -- Полет прямо к позиции монеты
+                -- Полет строго к позиции монеты без смещений
                 local target = targetCoin.Position
                 
                 for _, part in pairs(char:GetDescendants()) do 
@@ -757,5 +757,5 @@ WorldTab:Toggle({
     end
 })
 
-WindUI:Notify({ Title = "Hoverly Script Loaded", Content = "Direct AutoFarm & Fly/Noclip ready!", Duration = 4 })
+WindUI:Notify({ Title = "Hoverly Script Loaded", Content = "AutoFarm now flies directly to coins!", Duration = 4 })
 
