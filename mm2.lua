@@ -1,6 +1,6 @@
 --[[
     Project: Hoverly Script | Murder Mystery 2
-    UI Library: Wind UI + Candy Zone Auto Farm, Visuals, Auto Shot & Skin Changer
+    UI Library: Wind UI + Main (Spinbot), Visuals, Auto Farm, Combat & Troll
 ]]
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
@@ -22,7 +22,9 @@ local Window = WindUI:CreateWindow({
     Resizable = true,
 })
 
-local MainTab = Window:Tab({ Title = "Main & Visuals", Icon = "eye" })
+-- Создаем вкладку Main в самом верху
+local TopMainTab = Window:Tab({ Title = "Main", Icon = "home" })
+local MainTab = Window:Tab({ Title = "Visuals & ESP", Icon = "eye" })
 local FarmTab = Window:Tab({ Title = "Auto Farm & Coins", Icon = "coins" })
 local CombatTab = Window:Tab({ Title = "Combat & Aura", Icon = "crosshair" })
 local TrollTab = Window:Tab({ Title = "Troll & Misc", Icon = "user-x" })
@@ -37,6 +39,10 @@ local autoShootKey = Enum.KeyCode.E
 local highlights = {}
 local nameTags = {}
 local playerArrows = {}
+
+-- Настройки Spinbot
+local spinbotEnabled = false
+local spinbotSpeed = 50
 
 -- Настройки Auto Shot & Skin Changer
 _G.AutoShotEnabled = _G.AutoShotEnabled or false
@@ -212,7 +218,38 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- === 1. TAB: MAIN & VISUALS ===
+-- === 1. TAB: MAIN (SPINBOT) ===
+TopMainTab:Toggle({
+    Title = "Spinbot",
+    Description = "Automatically spins your character around.",
+    Value = false,
+    Callback = function(state)
+        spinbotEnabled = state
+    end
+})
+
+TopMainTab:Slider({
+    Title = "Spinbot Speed",
+    Min = 10,
+    Max = 200,
+    Default = 50,
+    Callback = function(value)
+        spinbotSpeed = value
+    end
+})
+
+RunService.RenderStepped:Connect(function()
+    if not spinbotEnabled then return end
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(spinbotSpeed), 0)
+    end
+end)
+
+
+-- === 2. TAB: VISUALS & ESP ===
 MainTab:Toggle({
     Title = "Player & Role ESP",
     Description = "Highlights players and dynamically updates roles.",
@@ -384,7 +421,7 @@ Players.PlayerAdded:Connect(function(p)
 end)
 
 
--- === 2. TAB: AUTO FARM & COINS (CANDY ZONE) ===
+-- === 3. TAB: AUTO FARM & COINS (CANDY ZONE) ===
 local function getTorso(char)
     if not char then return nil end
     return char:FindFirstChild("Torso") or char:FindFirstChild("LowerTorso") or char:FindFirstChild("HumanoidRootPart")
@@ -780,7 +817,7 @@ FarmTab:Toggle({
 })
 
 
--- === 3. TAB: COMBAT & AURA ===
+-- === 4. TAB: COMBAT & AURA ===
 CombatTab:Toggle({
     Title = "Smart Role Aimbot (Wallcheck)",
     Description = "Automatically aims at the enemy role.",
@@ -1135,20 +1172,35 @@ RunService.RenderStepped:Connect(function()
 end)
 
 
--- === 4. TAB: TROLL & MISC ===
+-- === 5. TAB: TROLL & MISC ===
 TrollTab:Toggle({
     Title = "Anti-Fling",
-    Description = "Protects you from being flung by other players.",
+    Description = "Disables collisions with other players so they cannot fling you.",
     Value = false,
-    Callback = function(state) antiFlingEnabled = state end
+    Callback = function(state) 
+        antiFlingEnabled = state 
+        if not state then
+            local char = LocalPlayer.Character
+            if char then
+                for _, part in ipairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then part.CanCollide = true end
+                end
+            end
+        end
+    end
 })
 
-RunService.Heartbeat:Connect(function()
-    if antiFlingEnabled then
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character then
-                local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-                if hrp then hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0) hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0) end
+RunService.Stepped:Connect(function()
+    if not antiFlingEnabled then return end
+    local myChar = LocalPlayer.Character
+    if not myChar then return end
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            for _, part in ipairs(player.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
             end
         end
     end
@@ -1156,31 +1208,56 @@ end)
 
 local selectedFlingTarget = nil
 local playerNames = {}
-for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then table.insert(playerNames, p.Name) end end
+
+local function updatePlayerDropdown()
+    table.clear(playerNames)
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            table.insert(playerNames, p.Name)
+        end
+    end
+end
+
+updatePlayerDropdown()
+
+Players.PlayerAdded:Connect(updatePlayerDropdown)
+Players.PlayerRemoving:Connect(updatePlayerDropdown)
 
 TrollTab:Dropdown({
     Title = "Select Player to Fling",
     Values = playerNames,
-    Callback = function(selected) selectedFlingTarget = Players:FindFirstChild(selected) end
+    Callback = function(selected) 
+        selectedFlingTarget = Players:FindFirstChild(selected) 
+    end
 })
 
 TrollTab:Button({
-    Title = "Fling Player (Smart Loop)",
+    Title = "Fling Selected Player",
+    Description = "Sends selected player flying out of the map using a velocity loop.",
     Callback = function()
-        if not selectedFlingTarget or not selectedFlingTarget.Character then return end
+        if not selectedFlingTarget or not selectedFlingTarget.Character then
+            WindUI:Notify({ Title = "Fling Error", Content = "Please select a valid player first!", Duration = 3 })
+            return
+        end
+        
         local targetHRP = selectedFlingTarget.Character:FindFirstChild("HumanoidRootPart")
         local myChar = LocalPlayer.Character
         local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        
         if targetHRP and myHRP then
             local originalPos = myHRP.CFrame
             local startPos = targetHRP.Position
             local connection, timeElapsed = nil, 0
+            
+            WindUI:Notify({ Title = "Flinging", Content = "Flinging " .. selectedFlingTarget.Name .. "...", Duration = 3 })
+            
             connection = RunService.Heartbeat:Connect(function(dt)
                 timeElapsed = timeElapsed + dt
-                if targetHRP and myHRP and selectedFlingTarget.Character and selectedFlingTarget.Character:FindFirstChildOfClass("Humanoid").Health > 0 then
+                if targetHRP and myHRP and selectedFlingTarget.Character and selectedFlingTarget.Character:FindFirstChildOfClass("Humanoid") and selectedFlingTarget.Character.Humanoid.Health > 0 then
                     myHRP.CFrame = targetHRP.CFrame * CFrame.new(math.random(-4, 4), math.random(-2, 2), math.random(-4, 4))
                     myHRP.AssemblyLinearVelocity = Vector3.new(99999, 99999, 99999)
                     myHRP.AssemblyAngularVelocity = Vector3.new(99999, 99999, 99999)
+                    
                     if (targetHRP.Position - startPos).Magnitude > 35 or timeElapsed > 4 then
                         connection:Disconnect()
                         myHRP.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
@@ -1199,7 +1276,7 @@ TrollTab:Button({
 })
 
 
--- === 5. TAB: WORLD SETTINGS ===
+-- === 6. TAB: WORLD SETTINGS ===
 WorldTab:Toggle({
     Title = "Fullbright (Disable Darkness)",
     Description = "Brightens up the game map.",
@@ -1217,7 +1294,7 @@ WorldTab:Toggle({
 
 WindUI:Notify({
     Title = "Hoverly Script Loaded",
-    Content = "China Hat, Candy Zone Auto Farm, Auto Shot & Skin Changer loaded!",
+    Content = "Main (Spinbot), Visuals, Auto Farm & Troll loaded!",
     Duration = 4
 })
 
