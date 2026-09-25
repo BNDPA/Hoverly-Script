@@ -1,6 +1,6 @@
 --[[
     Project: Hoverly Script | Murder Mystery 2
-    UI Library: Wind UI + Main (Spinbot), Visuals, Auto Farm, Combat & Troll
+    UI Library: Wind UI + Main (Spinbot), Visuals, Auto Farm, Combat, Troll & SpeedGlitch
 ]]
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
@@ -22,7 +22,7 @@ local Window = WindUI:CreateWindow({
     Resizable = true,
 })
 
--- Создаем вкладку Main в самом верху
+-- Создаем вкладки
 local TopMainTab = Window:Tab({ Title = "Main", Icon = "home" })
 local MainTab = Window:Tab({ Title = "Visuals & ESP", Icon = "eye" })
 local FarmTab = Window:Tab({ Title = "Auto Farm & Coins", Icon = "coins" })
@@ -39,6 +39,152 @@ local autoShootKey = Enum.KeyCode.E
 local highlights = {}
 local nameTags = {}
 local playerArrows = {}
+
+-- Переменные роли для ESP
+local t1 = {}
+local u16, u17, u18
+
+RunService.RenderStepped:Connect(function()
+    pcall(function()
+        local getPlayerData = game:GetService("ReplicatedStorage"):FindFirstChild("GetPlayerData", true)
+        if getPlayerData then
+            t1 = getPlayerData:InvokeServer()
+            if t1 then
+                for k, v in pairs(t1) do
+                    if v.Role == "Murderer" then
+                        u16 = k
+                    elseif v.Role == "Sheriff" then
+                        u17 = k
+                    elseif v.Role == "Hero" then
+                        u18 = k
+                    end
+                end
+            end
+        end
+    end)
+end)
+
+local function isPlayerAlive(player)
+    if not player or not player.Character then return false end
+    local hum = player.Character:FindFirstChild("Humanoid")
+    if not hum or hum.Health <= 0 then return false end
+    if t1 and t1[player.Name] then
+        if t1[player.Name].Killed or t1[player.Name].Dead then
+            return false
+        end
+    end
+    return true
+end
+
+local function getRole(player)
+    if player.Name == u16 then return "Murderer" end
+    if player.Name == u17 then return "Sheriff" end
+    if player.Name == u18 then return "Hero" end
+    
+    local char = player.Character
+    local backpack = player:FindFirstChild("Backpack")
+    local hasKnife = (backpack and backpack:FindFirstChild("Knife")) or (char and char:FindFirstChild("Knife"))
+    local hasGun = (backpack and backpack:FindFirstChild("Gun")) or (char and char:FindFirstChild("Gun"))
+    if hasKnife then return "Murderer" end
+    if hasGun then return "Sheriff" end
+    return "Innocent"
+end
+
+local function getRoleColor(player)
+    if player.Name == u16 then return Color3.fromRGB(225, 0, 0) end
+    if player.Name == u17 then return Color3.fromRGB(0, 0, 225) end
+    if player.Name == u18 then return Color3.fromRGB(255, 250, 0) end
+    local role = getRole(player)
+    if role == "Murderer" then return Color3.fromRGB(255, 45, 45) end
+    if role == "Sheriff" then return Color3.fromRGB(45, 130, 255) end
+    return Color3.fromRGB(0, 225, 0)
+end
+
+local function removeESP(player)
+    if highlights[player] then highlights[player]:Destroy() highlights[player] = nil end
+    if nameTags[player] then nameTags[player]:Destroy() nameTags[player] = nil end
+end
+
+local function applyESP(player)
+    if player == LocalPlayer then return end
+    removeESP(player)
+    if not player.Character then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Adornee = player.Character
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0.1
+    highlight.Enabled = espEnabled
+    highlight.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    highlights[player] = highlight
+
+    local head = player.Character:FindFirstChild("Head")
+    if head then
+        local billboard = Instance.new("BillboardGui")
+        billboard.Adornee = head
+        billboard.Size = UDim2.new(0, 120, 0, 30)
+        billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+        billboard.AlwaysOnTop = true
+        billboard.Enabled = espEnabled
+
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.new(1, 0, 1, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Text = player.DisplayName
+        textLabel.TextColor3 = getRoleColor(player)
+        textLabel.TextStrokeTransparency = 0.2
+        textLabel.TextSize = 11
+        textLabel.Font = Enum.Font.GothamBold
+        textLabel.Parent = billboard
+        
+        billboard.Parent = LocalPlayer.PlayerGui
+        nameTags[player] = billboard
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if not espEnabled then return end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local color = getRoleColor(p)
+            if highlights[p] then
+                highlights[p].FillColor = color
+                highlights[p].OutlineColor = color
+            end
+            if nameTags[p] and nameTags[p]:FindFirstChildOfClass("TextLabel") then
+                nameTags[p]:FindFirstChildOfClass("TextLabel").TextColor3 = color
+            end
+        end
+    end
+end)
+
+-- Интеграция логики SpeedGlitch
+local speedGlitchEnabled = true
+local speedGlitchSpeed = 50
+
+local currentCharacter = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local currentHumanoid = currentCharacter:WaitForChild("Humanoid")
+local currentHRP = currentCharacter:WaitForChild("HumanoidRootPart")
+
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+    currentCharacter = newChar
+    currentHumanoid = newChar:WaitForChild("Humanoid")
+    currentHRP = newChar:WaitForChild("HumanoidRootPart")
+end)
+
+RunService.Heartbeat:Connect(function()
+    if speedGlitchEnabled then
+        if currentHumanoid.FloorMaterial == Enum.Material.Air then
+            local moveDir = currentHumanoid.MoveDirection
+            if moveDir.Magnitude > 0 then
+                local currentVel = currentHRP.Velocity
+                local newVel = Vector3.new(moveDir.X * speedGlitchSpeed, currentVel.Y, moveDir.Z * speedGlitchSpeed)
+                currentHRP.Velocity = newVel
+                currentHRP.AssemblyLinearVelocity = newVel
+            end
+        end
+    end
+end)
 
 -- Настройки Spinbot
 local spinbotEnabled = false
@@ -111,16 +257,14 @@ local function CreateHat(Character)
     chinaHatInstance = Cone
 end
 
-local function OnCharacterAdded(Character)
+LocalPlayer.CharacterAdded:Connect(function(Character)
     if getgenv().ChinaHatSettings.enabled then
         Character:WaitForChild("Head")
         CreateHat(Character)
     end
-end
+end)
 
-LocalPlayer.CharacterAdded:Connect(OnCharacterAdded)
-
--- Переменные и настройки автофарма Candy Zone
+-- Переменные автофарма Candy Zone
 local Settings = {
     AutoFarmEnabled = false,
     FarmMode = "Underground",
@@ -140,288 +284,6 @@ local State = {
     currentTween = nil,
 }
 
-local function getRole(player)
-    if not player or not player.Character then return "Innocent" end
-    local char = player.Character
-    local backpack = player:FindFirstChild("Backpack")
-
-    local hasKnife = (backpack and backpack:FindFirstChild("Knife")) or char:FindFirstChild("Knife")
-    local hasGun = (backpack and backpack:FindFirstChild("Gun")) or char:FindFirstChild("Gun")
-
-    if hasKnife then return "Murderer" end
-    if hasGun then return "Sheriff" end
-    return "Innocent"
-end
-
-local function getRoleColor(player)
-    local role = getRole(player)
-    if role == "Murderer" then return Color3.fromRGB(255, 45, 45) end
-    if role == "Sheriff" then return Color3.fromRGB(45, 130, 255) end
-    return Color3.fromRGB(50, 220, 100)
-end
-
-local function removeESP(player)
-    if highlights[player] then highlights[player]:Destroy() highlights[player] = nil end
-    if nameTags[player] then nameTags[player]:Destroy() nameTags[player] = nil end
-end
-
-local function applyESP(player)
-    if player == LocalPlayer then return end
-    removeESP(player)
-    if not player.Character then return end
-
-    local highlight = Instance.new("Highlight")
-    highlight.Adornee = player.Character
-    highlight.FillTransparency = 0.5
-    highlight.OutlineTransparency = 0.1
-    highlight.Enabled = espEnabled
-    highlight.Parent = LocalPlayer:WaitForChild("PlayerGui")
-    highlights[player] = highlight
-
-    local head = player.Character:FindFirstChild("Head")
-    if head then
-        local billboard = Instance.new("BillboardGui")
-        billboard.Adornee = head
-        billboard.Size = UDim2.new(0, 120, 0, 30)
-        billboard.StudsOffset = Vector3.new(0, 2.5, 0)
-        billboard.AlwaysOnTop = true
-        billboard.Enabled = espEnabled
-
-        local textLabel = Instance.new("TextLabel")
-        textLabel.Size = UDim2.new(1, 0, 1, 0)
-        textLabel.BackgroundTransparency = 1
-        textLabel.Text = player.DisplayName
-        textLabel.TextColor3 = getRoleColor(player)
-        textLabel.TextStrokeTransparency = 0.2
-        textLabel.TextSize = 11
-        textLabel.Font = Enum.Font.GothamBold
-        textLabel.Parent = billboard
-        
-        billboard.Parent = LocalPlayer.PlayerGui
-        nameTags[player] = billboard
-    end
-end
-
-RunService.Heartbeat:Connect(function()
-    if not espEnabled then return end
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character then
-            local color = getRoleColor(p)
-            if highlights[p] then
-                highlights[p].FillColor = color
-                highlights[p].OutlineColor = color
-            end
-            if nameTags[p] and nameTags[p]:FindFirstChildOfClass("TextLabel") then
-                nameTags[p]:FindFirstChildOfClass("TextLabel").TextColor3 = color
-            end
-        end
-    end
-end)
-
--- === 1. TAB: MAIN (SPINBOT) ===
-TopMainTab:Toggle({
-    Title = "Spinbot",
-    Description = "Automatically spins your character around.",
-    Value = false,
-    Callback = function(state)
-        spinbotEnabled = state
-    end
-})
-
-TopMainTab:Slider({
-    Title = "Spinbot Speed",
-    Min = 10,
-    Max = 200,
-    Default = 50,
-    Callback = function(value)
-        spinbotSpeed = value
-    end
-})
-
-RunService.RenderStepped:Connect(function()
-    if not spinbotEnabled then return end
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(spinbotSpeed), 0)
-    end
-end)
-
-
--- === 2. TAB: VISUALS & ESP ===
-MainTab:Toggle({
-    Title = "Player & Role ESP",
-    Description = "Highlights players and dynamically updates roles.",
-    Value = false,
-    Callback = function(state)
-        espEnabled = state
-        for _, highlight in pairs(highlights) do if highlight then highlight.Enabled = espEnabled end end
-        for _, tag in pairs(nameTags) do if tag then tag.Enabled = espEnabled end end
-        if state then
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character then applyESP(p) end
-            end
-        end
-    end
-})
-
-MainTab:Toggle({
-    Title = "China Hat Visual",
-    Description = "Spawns a stylish glowing neon cone hat on your head.",
-    Value = getgenv().ChinaHatSettings.enabled,
-    Callback = function(state)
-        getgenv().ChinaHatSettings.enabled = state
-        if state then
-            if LocalPlayer.Character then
-                CreateHat(LocalPlayer.Character)
-            end
-        else
-            RemoveChinaHat(LocalPlayer.Character)
-        end
-    end
-})
-
-MainTab:Toggle({
-    Title = "Off-Screen Arrows ESP",
-    Description = "Shows directional triangles pointing to off-screen players.",
-    Value = false,
-    Callback = function(state)
-        arrowsEnabled = state
-        for _, arrow in pairs(playerArrows) do
-            if arrow and arrow.Remove then
-                arrow.Visible = state and arrow.IsOffScreen
-            end
-        end
-    end
-})
-
-local DistFromCenter = 80
-local TriangleHeight = 16
-local TriangleWidth = 16
-local TriangleThickness = 1
-local TriangleTransparency = 0
-
-local V3 = Vector3.new
-local V2 = Vector2.new
-local CF = CFrame.new
-local COS = math.cos
-local SIN = math.sin
-local RAD = math.rad
-
-local function GetRelative(pos, char)
-    if not char or not char.PrimaryPart then return V2(0,0) end
-    local rootP = char.PrimaryPart.Position
-    local camP = WorkspaceCamera.CFrame.Position
-    local relative = CF(V3(rootP.X, camP.Y, rootP.Z), camP):PointToObjectSpace(pos)
-    return V2(relative.X, relative.Z)
-end
-
-local function RelativeToCenter(v)
-    return WorkspaceCamera.ViewportSize/2 - v
-end
-
-local function RotateVect(v, a)
-    a = RAD(a)
-    local x = v.x * COS(a) - v.y * SIN(a)
-    local y = v.x * SIN(a) + v.y * COS(a)
-    return V2(x, y)
-end
-
-local function DrawTriangle(color)
-    local l = Drawing.new("Triangle")
-    l.Visible = false
-    l.Color = color
-    l.Filled = true
-    l.Thickness = TriangleThickness
-    l.Transparency = 1 - TriangleTransparency
-    return l
-end
-
-local function ShowArrow(PLAYER)
-    local arrowData = {
-        Drawing = DrawTriangle(Color3.fromRGB(255, 255, 255)),
-        IsOffScreen = false
-    }
-    playerArrows[PLAYER] = arrowData
-
-    local function Update()
-        local c
-        c = RunService.RenderStepped:Connect(function()
-            if not arrowsEnabled or not PLAYER or not PLAYER.Character or not PLAYER.Character:FindFirstChild("PrimaryPart") then
-                arrowData.Drawing.Visible = false
-                arrowData.IsOffScreen = false
-                if not PLAYER or not PLAYER.Parent then
-                    arrowData.Drawing:Remove()
-                    playerArrows[PLAYER] = nil
-                    c:Disconnect()
-                end
-                return
-            end
-
-            local CHAR = PLAYER.Character
-            local HUM = CHAR:FindFirstChildOfClass("Humanoid")
-
-            if HUM and HUM.Health > 0 then
-                arrowData.Drawing.Color = getRoleColor(PLAYER)
-
-                local _, vis = WorkspaceCamera:WorldToViewportPoint(CHAR.PrimaryPart.Position)
-                if not vis then
-                    local rel = GetRelative(CHAR.PrimaryPart.Position, LocalPlayer.Character)
-                    local direction = rel.unit
-
-                    local base = direction * DistFromCenter
-                    local sideLength = TriangleWidth / 2
-                    local baseL = base + RotateVect(direction, 90) * sideLength
-                    local baseR = base + RotateVect(direction, -90) * sideLength
-                    local tip = direction * (DistFromCenter + TriangleHeight)
-
-                    arrowData.Drawing.PointA = RelativeToCenter(baseL)
-                    arrowData.Drawing.PointB = RelativeToCenter(baseR)
-                    arrowData.Drawing.PointC = RelativeToCenter(tip)
-
-                    arrowData.IsOffScreen = true
-                    arrowData.Drawing.Visible = arrowsEnabled
-                else
-                    arrowData.IsOffScreen = false
-                    arrowData.Drawing.Visible = false
-                end
-            else
-                arrowData.Drawing.Visible = false
-                arrowData.IsOffScreen = false
-            end
-        end)
-    end
-
-    coroutine.wrap(Update)()
-end
-
-for _, v in pairs(Players:GetPlayers()) do
-    if v ~= LocalPlayer then
-        ShowArrow(v)
-    end
-end
-
-Players.PlayerAdded:Connect(function(v)
-    if v ~= LocalPlayer then
-        ShowArrow(v)
-    end
-end)
-
-for _, p in ipairs(Players:GetPlayers()) do
-    if p ~= LocalPlayer then
-        if p.Character then applyESP(p) end
-        p.CharacterAdded:Connect(function() task.wait(1) applyESP(p) end)
-        p.CharacterRemoving:Connect(function() removeESP(p) end)
-    end
-end
-Players.PlayerAdded:Connect(function(p)
-    p.CharacterAdded:Connect(function() task.wait(1) applyESP(p) end)
-    p.CharacterRemoving:Connect(function() removeESP(p) end)
-end)
-
-
--- === 3. TAB: AUTO FARM & COINS (CANDY ZONE) ===
 local function getTorso(char)
     if not char then return nil end
     return char:FindFirstChild("Torso") or char:FindFirstChild("LowerTorso") or char:FindFirstChild("HumanoidRootPart")
@@ -815,6 +677,228 @@ FarmTab:Toggle({
         Settings.AvoidMurder = state
     end
 })
+
+
+-- === 1. TAB: MAIN (SPINBOT & SPEEDGLITCH) ===
+TopMainTab:Toggle({
+    Title = "Spinbot",
+    Description = "Automatically spins your character around.",
+    Value = false,
+    Callback = function(state)
+        spinbotEnabled = state
+    end
+})
+
+TopMainTab:Slider({
+    Title = "Spinbot Speed",
+    Min = 10,
+    Max = 200,
+    Default = 50,
+    Callback = function(value)
+        spinbotSpeed = value
+    end
+})
+
+TopMainTab:Toggle({
+    Title = "SpeedGlitch",
+    Description = "Boosts speed in the air (Kolerot SpeedGlitch).",
+    Value = speedGlitchEnabled,
+    Callback = function(state)
+        speedGlitchEnabled = state
+    end
+})
+
+TopMainTab:Slider({
+    Title = "SpeedGlitch Value",
+    Min = 10,
+    Max = 200,
+    Default = speedGlitchSpeed,
+    Callback = function(value)
+        speedGlitchSpeed = value
+    end
+})
+
+RunService.RenderStepped:Connect(function()
+    if not spinbotEnabled then return end
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(spinbotSpeed), 0)
+    end
+end)
+
+
+-- === 2. TAB: VISUALS & ESP ===
+MainTab:Toggle({
+    Title = "Player & Role ESP",
+    Description = "Highlights players and dynamically updates roles.",
+    Value = false,
+    Callback = function(state)
+        espEnabled = state
+        for _, highlight in pairs(highlights) do if highlight then highlight.Enabled = espEnabled end end
+        for _, tag in pairs(nameTags) do if tag then tag.Enabled = espEnabled end end
+        if state then
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character then applyESP(p) end
+            end
+        end
+    end
+})
+
+MainTab:Toggle({
+    Title = "China Hat Visual",
+    Description = "Spawns a stylish glowing neon cone hat on your head.",
+    Value = getgenv().ChinaHatSettings.enabled,
+    Callback = function(state)
+        getgenv().ChinaHatSettings.enabled = state
+        if state then
+            if LocalPlayer.Character then
+                CreateHat(LocalPlayer.Character)
+            end
+        else
+            RemoveChinaHat(LocalPlayer.Character)
+        end
+    end
+})
+
+MainTab:Toggle({
+    Title = "Off-Screen Arrows ESP",
+    Description = "Shows directional triangles pointing to off-screen players.",
+    Value = false,
+    Callback = function(state)
+        arrowsEnabled = state
+        for _, arrow in pairs(playerArrows) do
+            if arrow and arrow.Remove then
+                arrow.Visible = state and arrow.IsOffScreen
+            end
+        end
+    end
+})
+
+local DistFromCenter = 80
+local TriangleHeight = 16
+local TriangleWidth = 16
+local TriangleThickness = 1
+local TriangleTransparency = 0
+
+local V3 = Vector3.new
+local V2 = Vector2.new
+local CF = CFrame.new
+local COS = math.cos
+local SIN = math.sin
+local RAD = math.rad
+
+local function GetRelative(pos, char)
+    if not char or not char.PrimaryPart then return V2(0,0) end
+    local rootP = char.PrimaryPart.Position
+    local camP = WorkspaceCamera.CFrame.Position
+    local relative = CF(V3(rootP.X, camP.Y, rootP.Z), camP):PointToObjectSpace(pos)
+    return V2(relative.X, relative.Z)
+end
+
+local function RelativeToCenter(v)
+    return WorkspaceCamera.ViewportSize/2 - v
+end
+
+local function RotateVect(v, a)
+    a = RAD(a)
+    local x = v.x * COS(a) - v.y * SIN(a)
+    local y = v.x * SIN(a) + v.y * COS(a)
+    return V2(x, y)
+end
+
+local function DrawTriangle(color)
+    local l = Drawing.new("Triangle")
+    l.Visible = false
+    l.Color = color
+    l.Filled = true
+    l.Thickness = TriangleThickness
+    l.Transparency = 1 - TriangleTransparency
+    return l
+end
+
+local function ShowArrow(PLAYER)
+    local arrowData = {
+        Drawing = DrawTriangle(Color3.fromRGB(255, 255, 255)),
+        IsOffScreen = false
+    }
+    playerArrows[PLAYER] = arrowData
+
+    local function Update()
+        local c
+        c = RunService.RenderStepped:Connect(function()
+            if not arrowsEnabled or not PLAYER or not PLAYER.Character or not PLAYER.Character:FindFirstChild("PrimaryPart") then
+                arrowData.Drawing.Visible = false
+                arrowData.IsOffScreen = false
+                if not PLAYER or not PLAYER.Parent then
+                    arrowData.Drawing:Remove()
+                    playerArrows[PLAYER] = nil
+                    c:Disconnect()
+                end
+                return
+            end
+
+            local CHAR = PLAYER.Character
+            local HUM = CHAR:FindFirstChildOfClass("Humanoid")
+
+            if HUM and HUM.Health > 0 then
+                arrowData.Drawing.Color = getRoleColor(PLAYER)
+
+                local _, vis = WorkspaceCamera:WorldToViewportPoint(CHAR.PrimaryPart.Position)
+                if not vis then
+                    local rel = GetRelative(CHAR.PrimaryPart.Position, LocalPlayer.Character)
+                    local direction = rel.unit
+
+                    local base = direction * DistFromCenter
+                    local sideLength = TriangleWidth / 2
+                    local baseL = base + RotateVect(direction, 90) * sideLength
+                    local baseR = base + RotateVect(direction, -90) * sideLength
+                    local tip = direction * (DistFromCenter + TriangleHeight)
+
+                    arrowData.Drawing.PointA = RelativeToCenter(baseL)
+                    arrowData.Drawing.PointB = RelativeToCenter(baseR)
+                    arrowData.Drawing.PointC = RelativeToCenter(tip)
+
+                    arrowData.IsOffScreen = true
+                    arrowData.Drawing.Visible = arrowsEnabled
+                else
+                    arrowData.IsOffScreen = false
+                    arrowData.Drawing.Visible = false
+                end
+            else
+                arrowData.Drawing.Visible = false
+                arrowData.IsOffScreen = false
+            end
+        end)
+    end
+
+    coroutine.wrap(Update)()
+end
+
+for _, v in pairs(Players:GetPlayers()) do
+    if v ~= LocalPlayer then
+        ShowArrow(v)
+    end
+end
+
+Players.PlayerAdded:Connect(function(v)
+    if v ~= LocalPlayer then
+        ShowArrow(v)
+    end
+end)
+
+for _, p in ipairs(Players:GetPlayers()) do
+    if p ~= LocalPlayer then
+        if p.Character then applyESP(p) end
+        p.CharacterAdded:Connect(function() task.wait(1) applyESP(p) end)
+        p.CharacterRemoving:Connect(function() removeESP(p) end)
+    end
+end
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function() task.wait(1) applyESP(p) end)
+    p.CharacterRemoving:Connect(function() removeESP(p) end)
+end)
 
 
 -- === 4. TAB: COMBAT & AURA ===
@@ -1275,7 +1359,7 @@ TrollTab:Button({
     end
 })
 
-
+I'm m in in n b
 -- === 6. TAB: WORLD SETTINGS ===
 WorldTab:Toggle({
     Title = "Fullbright (Disable Darkness)",
@@ -1294,7 +1378,6 @@ WorldTab:Toggle({
 
 WindUI:Notify({
     Title = "Hoverly Script Loaded",
-    Content = "Main (Spinbot), Visuals, Auto Farm & Troll loaded!",
+    Content = "SpeedGlitch integrated cleanly into the Main tab!",
     Duration = 4
 })
-
