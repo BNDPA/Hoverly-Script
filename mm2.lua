@@ -1359,7 +1359,7 @@ TrollTab:Button({
     end
 })
 
-I'm m in in n b
+
 -- === 6. TAB: WORLD SETTINGS ===
 WorldTab:Toggle({
     Title = "Fullbright (Disable Darkness)",
