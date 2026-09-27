@@ -1,506 +1,423 @@
--- promt by @mopscode
--- language: Lua, file: VantaUI.lua, target: Roblox (any executor, low-end safe)
--- Converted to NodiumUI format
+-- Загрузка библиотеки WindUI
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
-local NodiumUI = loadstring(game:HttpGet("https://github.com/BNDPA/NodiumUI/raw/refs/heads/main/Latest.lua"))()
-
-local Window = NodiumUI:Window({
-    title = "Hoverly Script | DOORS (Advanced)",
-    width = 720,
-    height = 420
+-- =========================================================================
+-- СОЗДАНИЕ ОКНА (Hoverly Script | Mog Evolution)
+-- =========================================================================
+local Window = WindUI:CreateWindow({
+    Title = "Hoverly Script | Mog Evolution",
+    Icon = "zap",
+    Author = "BNDPA",
+    Folder = "HoverlyMogEvolution",
+    Size = UDim2.fromOffset(480, 360),
+    Transparent = true,
+    Theme = "Dark",
+    SideBarWidth = 140,
+    HasOutline = true,
 })
 
-local MainTab = Window:CreateTab("Main / Auto")
-local PlayerTab = Window:CreateTab("Player")
-local ESPTab = Window:CreateTab("Multi-Floor ESP")
-local WorldTab = Window:CreateTab("World")
-
-local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
-local RunService = game:GetService("RunService")
-local Camera = Workspace.CurrentCamera
-local LocalPlayer = game:GetService("Players").LocalPlayer
-
-local noclipEnabled = false
-local speedEnabled = false
-local autoInteractEnabled = false
-local autoKeyEnabled = false
-local autoCheckScreechEnabled = false
-local espItemsEnabled = false
-local espPlayersEnabled = false
-local espEntitiesEnabled = false
-local espClosetsEnabled = false
-local entityNotifierEnabled = false
-
-local monsterActive = false
-
-local espFolder = Instance.new("Folder")
-espFolder.Name = "HoverlyDOORS_ESP"
-espFolder.Parent = Workspace
-
-local function createBillboard(target, text, color)
-    if not target then return end
-    local existing = target:FindFirstChild("HoverlyTag")
-    if existing then existing:Destroy() end
-
-    local bb = Instance.new("BillboardGui")
-    bb.Name = "HoverlyTag"
-    bb.Size = UDim2.new(0, 100, 0, 40)
-    bb.StudsOffset = Vector3.new(0, 2.5, 0)
-    bb.AlwaysOnTop = true
-    bb.Adornee = target
-    bb.Parent = target
-
-    local txt = Instance.new("TextLabel")
-    txt.Size = UDim2.new(1, 0, 1, 0)
-    txt.BackgroundTransparency = 1
-    txt.Text = text
-    txt.TextColor3 = color
-    txt.TextStrokeTransparency = 0.2
-    txt.TextSize = 14
-    txt.Font = Enum.Font.GothamBold
-    txt.Parent = bb
-end
-
--- =================================================================
--- 1. MAIN / AUTO SECTION
--- =================================================================
-local MainSection = MainTab:CreateSection("Entity & Auto-Interact")
-
-MainSection:CreateToggle({
-    Name = "Entity Notifier (Notice)",
-    CurrentValue = false,
-    Callback = function(state)
-        entityNotifierEnabled = state
-    end
+-- =========================================================================
+-- ВКЛАДКА: FARM
+-- =========================================================================
+local FarmTab = Window:Tab({
+    Title = "Farm",
+    Icon = "cpu",
 })
 
-MainSection:CreateToggle({
-    Name = "Auto Check Screech",
-    CurrentValue = false,
-    Callback = function(state)
-        autoCheckScreechEnabled = state
-    end
+FarmTab:Paragraph({
+    Title = "Авто фарм и модули",
+    Desc = "Автофарм по выбору точек, клики (20 мс), Auto Win и Auto Upgrade.",
 })
 
-MainSection:CreateToggle({
-    Name = "Auto Open Doors, Keys, Levers & Lockers",
-    CurrentValue = false,
-    Callback = function(state)
-        autoInteractEnabled = state
-        task.spawn(function()
-            while autoInteractEnabled do
-                task.wait(0.2)
-                pcall(function()
-                    local char = LocalPlayer.Character
-                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        for _, obj in pairs(Workspace:GetDescendants()) do
-                            if obj:IsA("ProximityPrompt") then
-                                local actionText = obj.ActionText:lower()
-                                local parent = obj.Parent
-                                local parentName = parent and parent.Name:lower() or ""
-                                local grandparent = parent and parent.Parent
-                                local grandparentName = grandparent and grandparent.Name:lower() or ""
-                                
-                                local isIgnored = false
+local AutoFarmEnabled = false
+local AutoWinEnabled = false
+local AutoUpgradeEnabled = false
+local farmOriginalCFrame = nil
 
-                                if parentName:find("vending") or parentName:find("shop") or parentName:find("jeff") or 
-                                   parentName:find("painting") or parentName:find("portrait") or parentName:find("canvas") or
-                                   parentName:find("seek") or grandparentName:find("seek") or actionText:find("seek") or
-                                   grandparentName:find("vending") or grandparentName:find("shop") or actionText:find("buy") then
-                                    isIgnored = true
-                                end
-
-                                local isHideOrSit = actionText:find("hide") or actionText:find("enter") or actionText:find("sit") or
-                                                     parentName:find("wardrobe") or parentName:find("closet") or parentName:find("bed") or 
-                                                     parentName:find("locker") or parentName:find("chair") or parentName:find("seat") or parentName:find("bench")
-
-                                if isHideOrSit then
-                                    if not monsterActive then
-                                        isIgnored = true
-                                    end
-                                end
-
-                                if not isIgnored then
-                                    local targetPart = nil
-                                    if parent then
-                                        if parent:IsA("BasePart") then
-                                            targetPart = parent
-                                        elseif parent:IsA("Model") then
-                                            targetPart = parent.PrimaryPart or parent:FindFirstChildWhichIsA("BasePart")
-                                        end
-                                    end
-
-                                    if targetPart and targetPart:IsA("BasePart") then
-                                        if (hrp.Position - targetPart.Position).Magnitude <= 14 then
-                                            fireproximityprompt(obj)
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end)
-            end
-        end)
-    end
-})
-
-MainSection:CreateToggle({
-    Name = "Auto Books & Puzzles",
-    CurrentValue = false,
-    Callback = function(state)
-        autoKeyEnabled = state
-        task.spawn(function()
-            while autoKeyEnabled do
-                task.wait(0.5)
-                pcall(function()
-                    local char = LocalPlayer.Character
-                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                    if not hrp then return end
-
-                    local rooms = Workspace:FindFirstChild("CurrentRooms")
-                    if rooms then
-                        for _, room in pairs(rooms:GetChildren()) do
-                            for _, item in pairs(room:GetDescendants()) do
-                                if (item.Name == "LiveHintBook" or item.Name:lower():find("breaker")) and item:FindFirstChild("Prompt") then
-                                    local prompt = item.Prompt
-                                    local targetPart = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
-                                    if targetPart and (hrp.Position - targetPart.Position).Magnitude < 15 then
-                                        fireproximityprompt(prompt)
-                                    end
-                                end
-                            end
-
-                            local door = room:FindFirstChild("Door")
-                            local padlock = door and door:FindFirstChild("Padlock")
-                            if padlock then
-                                local prompt = padlock:FindFirstChild("Prompt") or padlock:FindFirstChildWhichIsA("ProximityPrompt")
-                                if prompt and (hrp.Position - padlock.Position).Magnitude < 12 then
-                                    fireproximityprompt(prompt)
-                                end
-                            end
-                        end
-                    end
-                end)
-            end
-        end)
-    end
-})
-
-local monitoredEntities = {
-    ["RushMoving"] = "Rush is coming!",
-    ["AmbushMoving"] = "Ambush is coming!",
-    ["Eyes"] = "Eyes spawned!",
-    ["Halt"] = "Halt room!",
-    ["A-60"] = "A-60 is coming!",
-    ["A-90"] = "A-90 appeared!",
-    ["A-120"] = "A-120 is coming!",
-    ["Screech"] = "Screech appeared!",
-    ["Glitch"] = "Glitch teleported you!",
-    ["Snare"] = "Floor trap nearby!",
-    ["Figure"] = "Figure is near!",
-    ["SeekMoving"] = "SEEK CHASE!",
-    ["Timothy"] = "Timothy jumped out!",
-    ["Jack"] = "Jack spooky event!",
-    ["Void"] = "Void caught you!"
+-- Список точек Auto Farm & Click
+local farmWaypointsList = {
+    ["x2 appeal"]  = CFrame.new(-68.88, 6.74, -120.92),
+    ["x3 appeal"]  = CFrame.new(8.93, 7.74, -121.33),
+    ["X5 appeal"]  = CFrame.new(-69.21, 10.74, -151.10),
+    ["x8 appeal"]  = CFrame.new(-55.49, 10.74, -157.24),
+    ["x12 appeal"] = CFrame.new(-5.64, 10.73, -156.28),
+    ["x18 appeal"] = CFrame.new(8.51, 10.73, -151.30)
 }
 
-Workspace.ChildAdded:Connect(function(child)
-    local name = child.Name
-    if monitoredEntities[name] or name:find("A-") or name:find("Rush") or name:find("Ambush") then
-        if name ~= "Eyes" and name ~= "Screech" and name ~= "Snare" and name ~= "Timothy" and name ~= "A-90" and name ~= "SeekMoving" then
-            monsterActive = true
-        end
-    end
-end)
+local farmWaypointNames = {"x2 appeal", "x3 appeal", "X5 appeal", "x8 appeal", "x12 appeal", "x18 appeal"}
+local selectedFarmWaypoint = "x2 appeal" -- По умолчанию
 
-Workspace.ChildRemoved:Connect(function(child)
-    local name = child.Name
-    if monitoredEntities[name] or name:find("A-") or name:find("Rush") or name:find("Ambush") then
-        local dangerFound = false
-        for _, entName in pairs({"RushMoving", "AmbushMoving", "A-60", "A-120", "Halt", "Figure"}) do
-            if Workspace:FindFirstChild(entName) then
-                dangerFound = true
-                break
-            end
-        end
-        if not dangerFound then
-            monsterActive = false
-        end
-    end
-end)
+-- Список точек Auto Win (с добавлением 54m и 120m аппелов)
+local winWaypointsList = {
+    ["Subhuman"]             = {path = CFrame.new(-120.23, 5.96, -83.34), target = CFrame.new(-120.23, 10.64, -55.60)},
+    ["Sub 3"]                = {path = CFrame.new(-160.72, 5.99, -83.82), target = CFrame.new(-160.68, 12.74, -54.65)},
+    ["Sub 5"]                = {path = CFrame.new(-199.07, 5.86, -83.55), target = CFrame.new(-200.39, 12.67, -55.68)},
+    ["LTN"]                  = {path = CFrame.new(-241.17, 5.99, -83.55), target = CFrame.new(-240.52, 12.46, -55.33)},
+    ["MTN"]                  = {path = CFrame.new(-281.45, 5.99, -83.65), target = CFrame.new(-279.76, 10.83, -55.84)},
+    ["HTN"]                  = {path = CFrame.new(-325.83, 6.49, -83.75), target = CFrame.new(-319.91, 11.21, -52.39)},
+    ["ChadLite"]             = {path = CFrame.new(-357.78, 6.58, -70.35), target = CFrame.new(-360.33, 11.86, -52.86)},
+    ["Chad"]                 = {path = CFrame.new(-400.42, 6.78, -71.99), target = CFrame.new(-401.11, 10.57, -51.74)},
+    ["AdamLite"]             = {path = CFrame.new(-440.43, 6.96, -74.95), target = CFrame.new(-440.64, 14.14, -54.98)},
+    ["True Adam (2.6m appeals)"] = {path = CFrame.new(-480.72, 6.98, -75.87), target = CFrame.new(-481.61, 12.42, -52.87)},
+    ["True Adam (12m appeals)"]  = {path = CFrame.new(-518.18, 6.78, -75.07), target = CFrame.new(-520.59, 10.59, -51.46)},
+    ["True Adam (23m appeals)"]  = {path = CFrame.new(-559.53, 6.90, -75.14), target = CFrame.new(-559.60, 11.05, -51.17)},
+    ["True Adam (42m appeals)"]  = {path = CFrame.new(-600.51, 6.95, -72.85), target = CFrame.new(-601.40, 12.22, -52.48)},
+    ["True Adam (54m appeals)"]  = {path = CFrame.new(-641.54, 6.98, -71.48), target = CFrame.new(-641.64, 10.04, -49.30)},
+    ["True Adam (120m appeals)"] = {path = CFrame.new(-680.81, 6.98, -71.36), target = CFrame.new(-680.70, 12.46, -51.83)}
+}
 
-RunService.RenderStepped:Connect(function()
-    if not autoCheckScreechEnabled then return end
-    
-    pcall(function()
-        local screechTarget = nil
-        for _, obj in pairs(Workspace:GetChildren()) do
-            if obj.Name:lower():find("screech") then
-                screechTarget = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
-                break
-            end
-        end
+local waypointNames = {
+    "Subhuman", "Sub 3", "Sub 5", "LTN", "MTN", "HTN", "ChadLite", "Chad", "AdamLite", 
+    "True Adam (2.6m appeals)", "True Adam (12m appeals)", "True Adam (23m appeals)", 
+    "True Adam (42m appeals)", "True Adam (54m appeals)", "True Adam (120m appeals)"
+}
+local selectedWaypointName = "HTN" -- По умолчанию
 
-        if not screechTarget and LocalPlayer.Character then
-            for _, obj in pairs(LocalPlayer.Character:GetChildren()) do
-                if obj.Name:lower():find("screech") then
-                    screechTarget = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
-                    break
+-- =========================================================================
+-- БЛОК AUTO FARM & CLICK
+-- =========================================================================
+
+FarmTab:Dropdown({
+    Title = "Выбор точки Auto Farm",
+    Values = farmWaypointNames,
+    Default = "x2 appeal",
+    Callback = function(option)
+        selectedFarmWaypoint = option
+        WindUI:Notify({
+            Title = "Auto Farm",
+            Content = "Выбрана точка: " .. option,
+            Duration = 2
+        })
+        
+        if AutoFarmEnabled then
+            local character = LocalPlayer.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local rootPart = character.HumanoidRootPart
+                local targetCFrame = farmWaypointsList[selectedFarmWaypoint]
+                if targetCFrame then
+                    local distance = (rootPart.Position - targetCFrame.Position).Magnitude
+                    local flightSpeed = 18
+                    local flightTime = math.clamp(distance / flightSpeed, 1, 5)
+                    
+                    local tweenInfo = TweenInfo.new(flightTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+                    tween:Play()
                 end
             end
         end
+    end
+})
 
-        if screechTarget and screechTarget:IsA("BasePart") then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, screechTarget.Position)
+FarmTab:Toggle({
+    Title = "Auto Farm & Click (20 мс)",
+    Default = false,
+    Callback = function(state)
+        AutoFarmEnabled = state
+        
+        local character = LocalPlayer.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local rootPart = character.HumanoidRootPart
+            
+            if AutoFarmEnabled then
+                farmOriginalCFrame = rootPart.CFrame
+                
+                local targetCFrame = farmWaypointsList[selectedFarmWaypoint] or farmWaypointsList["x2 appeal"]
+                local distance = (rootPart.Position - targetCFrame.Position).Magnitude
+                local flightSpeed = 18
+                local flightTime = math.clamp(distance / flightSpeed, 1, 5)
+                
+                local tweenInfo = TweenInfo.new(flightTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+                tween:Play()
+            else
+                if farmOriginalCFrame then
+                    local distance = (rootPart.Position - farmOriginalCFrame.Position).Magnitude
+                    local flightSpeed = 18
+                    local flightTime = math.clamp(distance / flightSpeed, 1, 5)
+                    
+                    local tweenInfo = TweenInfo.new(flightTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = farmOriginalCFrame})
+                    tween:Play()
+                end
+            end
         end
+    end
+})
+
+-- =========================================================================
+-- БЛОК AUTO WIN
+-- =========================================================================
+
+FarmTab:Dropdown({
+    Title = "Выбор точки Auto Win",
+    Values = waypointNames,
+    Default = "HTN",
+    Callback = function(option)
+        selectedWaypointName = option
+        WindUI:Notify({
+            Title = "Auto Win",
+            Content = "Выбрана точка: " .. option,
+            Duration = 2
+        })
+    end
+})
+
+-- Функция ходьбы с вилянием вправо по дороге и точным подходом к цели
+local function walkToWithPathSway(humanoid, rootPart, targetPosition, isFinalTarget)
+    local reached = false
+    local connection
+    
+    connection = humanoid.MoveToFinished:Connect(function(isReached)
+        reached = true
+        if connection then connection:Disconnect() end
     end)
-end)
-
--- =================================================================
--- 2. PLAYER SECTION
--- =================================================================
-local PlayerSection = PlayerTab:CreateSection("Movement")
-
-PlayerSection:CreateToggle({
-    Name = "Smart NoClip",
-    CurrentValue = false,
-    Callback = function(state)
-        noclipEnabled = state
+    
+    local startTime = tick()
+    while not reached and AutoWinEnabled and (tick() - startTime < 25) do
+        local currentPos = rootPart.Position
+        local distanceToTarget = (currentPos - targetPosition).Magnitude
+        
+        if distanceToTarget < 3.5 then
+            reached = true
+            break
+        end
+        
+        -- Если это конечная точка, идем абсолютно точно к ней без виляния
+        if isFinalTarget then
+            humanoid:MoveTo(targetPosition)
+        else
+            -- Пока идем по промежуточному пути — веляем вправо (добавляем смещение по оси X)
+            local direction = (targetPosition - currentPos).Unit
+            local rightVector = direction:Cross(Vector3.new(0, 1, 0)).Unit
+            
+            -- Вычисляем слегка смещенную точку вправо (на 2 студа) для эффекта виляния
+            local swayedPosition = targetPosition + (rightVector * 2.0)
+            humanoid:MoveTo(swayedPosition)
+        end
+        
+        task.wait(0.25)
     end
-})
+    
+    -- Финальное точное движение на позицию
+    humanoid:MoveTo(targetPosition)
+    task.wait(0.3)
+    
+    if connection then connection:Disconnect() end
+end
 
-PlayerSection:CreateToggle({
-    Name = "Speed (20)",
-    CurrentValue = false,
+-- Включение Auto Win
+FarmTab:Toggle({
+    Title = "Auto Win (Включить фарм по точкам)",
+    Default = false,
     Callback = function(state)
-        speedEnabled = state
-    end
-})
-
-RunService.Stepped:Connect(function()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-
-    if noclipEnabled then
-        for _, part in pairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
-                local touchingParts = part:GetTouchingParts()
-                for _, touchPart in pairs(touchingParts) do
-                    if touchPart and touchPart.Parent ~= char then
-                        local size = touchPart.Size
-                        if size.X < 4 and size.Y < 4 and size.Z < 4 and not touchPart.Name:lower():find("door") then
-                            touchPart.CanCollide = false
+        AutoWinEnabled = state
+        
+        task.spawn(function()
+            while AutoWinEnabled do
+                local character = LocalPlayer.Character
+                if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChildOfClass("Humanoid") then
+                    local rootPart = character.HumanoidRootPart
+                    local humanoid = character:FindFirstChildOfClass("Humanoid")
+                    
+                    local data = winWaypointsList[selectedWaypointName]
+                    if data then
+                        -- 1. Идем к начальной точке пути (с вилянием вправо)
+                        walkToWithPathSway(humanoid, rootPart, data.path.Position, false)
+                        
+                        if not AutoWinEnabled then break end
+                        
+                        -- 2. Идем к целевой точке (точно в цель без виляния)
+                        walkToWithPathSway(humanoid, rootPart, data.target.Position, true)
+                        
+                        -- Пауза на точке
+                        local stayTime = tick()
+                        while tick() - stayTime < 2 and AutoWinEnabled do
+                            task.wait(0.1)
                         end
                     end
                 end
+                task.wait(0.5)
             end
-        end
+        end)
     end
+})
 
-    if humanoid then
-        if speedEnabled then
-            humanoid.WalkSpeed = 20
+FarmTab:Toggle({
+    Title = "Auto Upgrade (Покупка лучшего)",
+    Default = false,
+    Callback = function(state)
+        AutoUpgradeEnabled = state
+    end
+})
+
+-- Ультра-быстрый кликер (20 мс)
+task.spawn(function()
+    math.randomseed(tick())
+    while true do
+        if AutoFarmEnabled then
+            pcall(function()
+                local viewportSize = Camera.ViewportSize
+                local centerX = viewportSize.X / 2
+                local centerY = viewportSize.Y / 2
+                
+                local randomX = math.random(centerX - 150, centerX - 50)
+                local randomY = math.random(centerY - 100, centerY + 100)
+                
+                VirtualInputManager:SendMouseButtonEvent(randomX, randomY, 0, true, game, 0)
+                task.wait(0.01)
+                VirtualInputManager:SendMouseButtonEvent(randomX, randomY, 0, false, game, 0)
+            end)
+            task.wait(0.01)
         else
-            if humanoid.WalkSpeed == 20 then
-                humanoid.WalkSpeed = 16
-            end
+            task.wait(0.1)
         end
     end
 end)
 
--- =================================================================
--- 3. ESP SECTION
--- =================================================================
-local ESPSection = ESPTab:CreateSection("Visuals")
-
-ESPSection:CreateToggle({
-    Name = "ESP Doors, Keys, Levers & Books",
-    CurrentValue = false,
-    Callback = function(state)
-        espItemsEnabled = state
+-- Логика Auto Win (отправка RemoteEvent)
+task.spawn(function()
+    while true do
+        if AutoWinEnabled then
+            pcall(function()
+                for _, descendant in ipairs(ReplicatedStorage:GetDescendants()) do
+                    if descendant:IsA("RemoteEvent") then
+                        local name = string.lower(descendant.Name)
+                        if name:find("mog") or name:find("train") or name:find("tap") or name:find("click") or name:find("win") then
+                            descendant:FireServer()
+                        end
+                    end
+                end
+            end)
+            task.wait(0.5)
+        else
+            task.wait(1)
+        end
     end
+end)
+
+-- Логика Auto Upgrade
+task.spawn(function()
+    while true do
+        if AutoUpgradeEnabled then
+            pcall(function()
+                local winsVal = nil
+                local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
+                if leaderstats then
+                    for _, stat in ipairs(leaderstats:GetChildren()) do
+                        local nameLower = string.lower(stat.Name)
+                        if nameLower:find("win") or nameLower:find("побед") then
+                            winsVal = stat
+                            break
+                        end
+                    end
+                end
+                
+                if winsVal and typeof(winsVal.Value) == "number" and winsVal.Value >= 0 then
+                    for _, descendant in ipairs(ReplicatedStorage:GetDescendants()) do
+                        if descendant:IsA("RemoteEvent") then
+                            local name = string.lower(descendant.Name)
+                            if name:find("buy") or name:find("upgrade") or name:find("tool") or name:find("purchase") then
+                                descendant:FireServer()
+                                descendant:FireServer("Best")
+                                descendant:FireServer(1)
+                            end
+                        end
+                    end
+                end
+            end)
+            task.wait(2)
+        else
+            task.wait(1)
+        end
+    end
+end)
+
+-- =========================================================================
+-- ЗАЩИТА ОТ ДОНАТ-МЕНЮ И МАГАЗИНОВ ПРИ ВКЛЮЧЕННОМ AUTO WIN
+-- =========================================================================
+task.spawn(function()
+    while true do
+        if AutoWinEnabled then
+            pcall(function()
+                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if playerGui then
+                    for _, gui in ipairs(playerGui:GetDescendants()) do
+                        if gui:IsA("GuiObject") or gui:IsA("ScreenGui") then
+                            local nameLower = string.lower(gui.Name)
+                            if nameLower:find("shop") or 
+                               nameLower:find("donate") or 
+                               nameLower:find("purchase") or 
+                               nameLower:find("product") or 
+                               nameLower:find("gamepass") or 
+                               nameLower:find("store") or 
+                               nameLower:find("robux") then
+                                
+                                if gui.Visible then
+                                    gui.Visible = false
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+            task.wait(0.05)
+        else
+            task.wait(0.5)
+        end
+    end
+end)
+
+-- =========================================================================
+-- ВКЛАДКА: OTHER (Авто Ребирт)
+-- =========================================================================
+local OtherTab = Window:Tab({
+    Title = "Other",
+    Icon = "settings",
 })
 
-ESPSection:CreateToggle({
-    Name = "ESP Closets / Hiding Spots",
-    CurrentValue = false,
-    Callback = function(state)
-        espClosetsEnabled = state
-    end
+OtherTab:Paragraph({
+    Title = "Дополнительные функции",
+    Desc = "Автоматическое выполнение возрождений (Rebirth).",
 })
 
-ESPSection:CreateToggle({
-    Name = "ESP Players",
-    CurrentValue = false,
-    Callback = function(state)
-        espPlayersEnabled = state
-    end
-})
+local AutoRebirthEnabled = false
 
-ESPSection:CreateToggle({
-    Name = "ESP ALL Monsters / Entities",
-    CurrentValue = false,
+OtherTab:Toggle({
+    Title = "Auto Rebirth",
+    Default = false,
     Callback = function(state)
-        espEntitiesEnabled = state
+        AutoRebirthEnabled = state
     end
 })
 
 task.spawn(function()
     while true do
-        task.wait(1)
-        pcall(function()
-            if not espItemsEnabled and not espPlayersEnabled and not espEntitiesEnabled and not espClosetsEnabled then
-                espFolder:ClearAllChildren()
-                return
-            end
-
-            espFolder:ClearAllChildren()
-
-            local roomsContainer = Workspace:FindFirstChild("CurrentRooms")
-            if roomsContainer then
-                for _, room in pairs(roomsContainer:GetChildren()) do
-                    local door = room:FindFirstChild("Door")
-                    if door and espItemsEnabled then
-                        local targetPart = door:FindFirstChild("Knob") or door:FindFirstChild("Door") or door:FindFirstChildWhichIsA("BasePart")
-                        if targetPart and targetPart:IsA("BasePart") then
-                            local hl = Instance.new("Highlight")
-                            hl.Adornee = targetPart
-                            hl.FillColor = Color3.fromRGB(0, 255, 0)
-                            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                            hl.FillTransparency = 0.4
-                            hl.Parent = espFolder
-                            createBillboard(targetPart, "🚪 door", Color3.fromRGB(0, 255, 0))
-                        end
+        if AutoRebirthEnabled then
+            pcall(function()
+                for _, descendant in ipairs(ReplicatedStorage:GetDescendants()) do
+                    if descendant:IsA("RemoteEvent") and (string.lower(descendant.Name):find("rebirth") or string.lower(descendant.Name):find("evolution")) then
+                        descendant:FireServer()
                     end
-
-                    if espItemsEnabled then
-                        for _, item in pairs(room:GetDescendants()) do
-                            local itemName = item.Name:lower()
-                            local labelText = ""
-                            local color = Color3.fromRGB(255, 230, 0)
-
-                            if itemName == "livehintbook" then
-                                labelText = "📖 book"
-                                color = Color3.fromRGB(0, 200, 255)
-                            elseif itemName:find("breaker") or itemName:find("switch") or itemName:find("lever") then
-                                labelText = "⚙️ mechanism"
-                                color = Color3.fromRGB(255, 140, 0)
-                            elseif itemName == "key" or itemName == "keycard" or itemName == "padlock" then
-                                labelText = "🔑 key"
-                                color = Color3.fromRGB(255, 230, 0)
-                            end
-
-                            if labelText ~= "" then
-                                local targetPart = item:IsA("Model") and (item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")) or item
-                                if targetPart and targetPart:IsA("BasePart") then
-                                    local hl = Instance.new("Highlight")
-                                    hl.Adornee = item
-                                    hl.FillColor = color
-                                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                                    hl.FillTransparency = 0.4
-                                    hl.Parent = espFolder
-                                    createBillboard(targetPart, labelText, color)
-                                end
-                            end
-                        end
-                    end
-
-                    if espClosetsEnabled then
-                        for _, obj in pairs(room:GetDescendants()) do
-                            local name = obj.Name:lower()
-                            if name:find("wardrobe") or name:find("closet") or name:find("bed") or name:find("locker") or name:find("hide") then
-                                local targetPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
-                                if targetPart and targetPart:IsA("BasePart") then
-                                    local hl = Instance.new("Highlight")
-                                    hl.Adornee = obj
-                                    hl.FillColor = Color3.fromRGB(160, 32, 240)
-                                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                                    hl.FillTransparency = 0.4
-                                    hl.Parent = espFolder
-                                    createBillboard(targetPart, "🗄️ hiding spot", Color3.fromRGB(160, 32, 240))
-                                end
-                            end
+                end
+                if LocalPlayer:FindFirstChild("PlayerGui") then
+                    for _, gui in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
+                        if gui:IsA("RemoteEvent") and string.lower(gui.Name):find("rebirth") then
+                            gui:FireServer()
                         end
                     end
                 end
-            end
-
-            if espPlayersEnabled then
-                for _, player in pairs(game:GetService("Players"):GetPlayers()) do
-                    if player ~= LocalPlayer and player.Character then
-                        local char = player.Character
-                        local hrp = char:FindFirstChild("HumanoidRootPart")
-                        if hrp then
-                            local hl = Instance.new("Highlight")
-                            hl.Adornee = char
-                            hl.FillColor = Color3.fromRGB(0, 150, 255)
-                            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                            hl.FillTransparency = 0.4
-                            hl.Parent = espFolder
-                            createBillboard(hrp, player.Name, Color3.fromRGB(0, 150, 255))
-                        end
-                    end
-                end
-            end
-
-            if espEntitiesEnabled then
-                for _, entity in pairs(Workspace:GetChildren()) do
-                    local entityName = entity.Name
-                    local nameLower = entityName:lower()
-                    
-                    local isMonster = monitoredEntities[entityName] or 
-                                      nameLower:find("rush") or 
-                                      nameLower:find("ambush") or 
-                                      nameLower:find("eyes") or 
-                                      nameLower:find("halt") or 
-                                      nameLower:find("figure") or 
-                                      nameLower:find("seek") or 
-                                      nameLower:find("screech") or 
-                                      nameLower:find("snare") or 
-                                      nameLower:find("dupe") or 
-                                      nameLower:find("glitch") or 
-                                      entityName:find("A-")
-
-                    if isMonster then
-                        local targetPart = entity:IsA("Model") and (entity.PrimaryPart or entity:FindFirstChildWhichIsA("BasePart")) or entity
-                        if targetPart and targetPart:IsA("BasePart") then
-                            local hl = Instance.new("Highlight")
-                            hl.Adornee = entity
-                            hl.FillColor = Color3.fromRGB(255, 0, 0)
-                            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                            hl.FillTransparency = 0.3
-                            hl.Parent = espFolder
-                            createBillboard(targetPart, "⚠️ " .. entityName, Color3.fromRGB(255, 0, 0))
-                        end
-                    end
-                end
-            end
-        end)
+            end)
+            task.wait(1)
+        else
+            task.wait(1)
+        end
     end
 end)
 
--- =================================================================
--- 4. WORLD SECTION
--- =================================================================
-local WorldSection = WorldTab:CreateSection("Lighting")
-
-WorldSection:CreateToggle({
-    Name = "Fullbright",
-    CurrentValue = false,
-    Callback = function(state)
-        if state then
-            Lighting.Brightness = 2
-            Lighting.ClockTime = 14
-            Lighting.FogEnd = 100000
-            Lighting.GlobalShadows = false
-        else
-            Lighting.Brightness = 1
-            Lighting.ClockTime = 0
-            Lighting.GlobalShadows = true
-        end
-    end
-})
+Window:SelectTab(1)
