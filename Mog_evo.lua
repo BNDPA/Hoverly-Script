@@ -1,5 +1,6 @@
--- Загрузка библиотеки WindUI
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+-- Загрузка библиотеки VantaUI
+local VantaUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/mopscode/VantaUI/main/VantaUI.lua"))()
+
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
@@ -10,30 +11,20 @@ local Camera = workspace.CurrentCamera
 -- =========================================================================
 -- СОЗДАНИЕ ОКНА (Hoverly Script | Mog Evolution)
 -- =========================================================================
-local Window = WindUI:CreateWindow({
-    Title = "Hoverly Script | Mog Evolution",
-    Icon = "zap",
-    Author = "BNDPA",
-    Folder = "HoverlyMogEvolution",
-    Size = UDim2.fromOffset(480, 360),
-    Transparent = true,
-    Theme = "Dark",
-    SideBarWidth = 140,
-    HasOutline = true,
+local Window = VantaUI:Window({
+    title = "Hoverly Script | Mog Evolution",
+    width = 520,
+    height = 380,
 })
+
+-- Создаем передвигаемый круг для быстрого сворачивания/разворачивания UI
+Window:CreateDraggableCircle("rbxassetid://6023426915")
 
 -- =========================================================================
 -- ВКЛАДКА: FARM
 -- =========================================================================
-local FarmTab = Window:Tab({
-    Title = "Farm",
-    Icon = "cpu",
-})
-
-FarmTab:Paragraph({
-    Title = "Авто фарм и модули",
-    Desc = "Автофарм по выбору точек, клики (20 мс), Auto Win и Auto Upgrade.",
-})
+local FarmTab = Window:CreateTab("Farm")
+local FarmSection = FarmTab:CreateSection("Авто фарм и модули")
 
 local AutoFarmEnabled = false
 local AutoWinEnabled = false
@@ -83,51 +74,15 @@ local selectedWaypointName = "HTN" -- По умолчанию
 -- БЛОК AUTO FARM & CLICK
 -- =========================================================================
 
-FarmTab:Dropdown({
-    Title = "Выбор точки Auto Farm",
-    Values = farmWaypointNames,
-    Default = "x2 appeal",
-    Callback = function(option)
-        selectedFarmWaypoint = option
-        WindUI:Notify({
-            Title = "Auto Farm",
-            Content = "Выбрана точка: " .. option,
-            Duration = 2
-        })
-        
-        if AutoFarmEnabled then
-            local character = LocalPlayer.Character
-            if character and character:FindFirstChild("HumanoidRootPart") then
-                local rootPart = character.HumanoidRootPart
-                local targetCFrame = farmWaypointsList[selectedFarmWaypoint]
-                if targetCFrame then
-                    local distance = (rootPart.Position - targetCFrame.Position).Magnitude
-                    local flightSpeed = 18
-                    local flightTime = math.clamp(distance / flightSpeed, 1, 5)
-                    
-                    local tweenInfo = TweenInfo.new(flightTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
-                    tween:Play()
-                end
-            end
-        end
-    end
-})
-
-FarmTab:Toggle({
-    Title = "Auto Farm & Click (20 мс)",
-    Default = false,
-    Callback = function(state)
-        AutoFarmEnabled = state
-        
+FarmSection:CreateDropdown("Точка Auto Farm", farmWaypointNames, "x2 appeal", function(option)
+    selectedFarmWaypoint = option
+    
+    if AutoFarmEnabled then
         local character = LocalPlayer.Character
         if character and character:FindFirstChild("HumanoidRootPart") then
             local rootPart = character.HumanoidRootPart
-            
-            if AutoFarmEnabled then
-                farmOriginalCFrame = rootPart.CFrame
-                
-                local targetCFrame = farmWaypointsList[selectedFarmWaypoint] or farmWaypointsList["x2 appeal"]
+            local targetCFrame = farmWaypointsList[selectedFarmWaypoint]
+            if targetCFrame then
                 local distance = (rootPart.Position - targetCFrame.Position).Magnitude
                 local flightSpeed = 18
                 local flightTime = math.clamp(distance / flightSpeed, 1, 5)
@@ -135,38 +90,50 @@ FarmTab:Toggle({
                 local tweenInfo = TweenInfo.new(flightTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
                 local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
                 tween:Play()
-            else
-                if farmOriginalCFrame then
-                    local distance = (rootPart.Position - farmOriginalCFrame.Position).Magnitude
-                    local flightSpeed = 18
-                    local flightTime = math.clamp(distance / flightSpeed, 1, 5)
-                    
-                    local tweenInfo = TweenInfo.new(flightTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = farmOriginalCFrame})
-                    tween:Play()
-                end
             end
         end
     end
-})
+end)
+
+FarmSection:CreateToggle("Auto Farm & Click (20 мс)", false, function(state)
+    AutoFarmEnabled = state
+    
+    local character = LocalPlayer.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        local rootPart = character.HumanoidRootPart
+        
+        if AutoFarmEnabled then
+            farmOriginalCFrame = rootPart.CFrame
+            
+            local targetCFrame = farmWaypointsList[selectedFarmWaypoint] or farmWaypointsList["x2 appeal"]
+            local distance = (rootPart.Position - targetCFrame.Position).Magnitude
+            local flightSpeed = 18
+            local flightTime = math.clamp(distance / flightSpeed, 1, 5)
+            
+            local tweenInfo = TweenInfo.new(flightTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+            tween:Play()
+        else
+            if farmOriginalCFrame then
+                local distance = (rootPart.Position - farmOriginalCFrame.Position).Magnitude
+                local flightSpeed = 18
+                local flightTime = math.clamp(distance / flightSpeed, 1, 5)
+                
+                local tweenInfo = TweenInfo.new(flightTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = farmOriginalCFrame})
+                tween:Play()
+            end
+        end
+    end
+end)
 
 -- =========================================================================
 -- БЛОК AUTO WIN
 -- =========================================================================
 
-FarmTab:Dropdown({
-    Title = "Выбор точки Auto Win",
-    Values = waypointNames,
-    Default = "HTN",
-    Callback = function(option)
-        selectedWaypointName = option
-        WindUI:Notify({
-            Title = "Auto Win",
-            Content = "Выбрана точка: " .. option,
-            Duration = 2
-        })
-    end
-})
+FarmSection:CreateDropdown("Точка Auto Win", waypointNames, "HTN", function(option)
+    selectedWaypointName = option
+end)
 
 -- Функция ходьбы с вилянием вправо по дороге и точным подходом к цели
 local function walkToWithPathSway(humanoid, rootPart, targetPosition, isFinalTarget)
@@ -212,49 +179,41 @@ local function walkToWithPathSway(humanoid, rootPart, targetPosition, isFinalTar
 end
 
 -- Включение Auto Win
-FarmTab:Toggle({
-    Title = "Auto Win (Включить фарм по точкам)",
-    Default = false,
-    Callback = function(state)
-        AutoWinEnabled = state
-        
-        task.spawn(function()
-            while AutoWinEnabled do
-                local character = LocalPlayer.Character
-                if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChildOfClass("Humanoid") then
-                    local rootPart = character.HumanoidRootPart
-                    local humanoid = character:FindFirstChildOfClass("Humanoid")
+FarmSection:CreateToggle("Auto Win (Фарм по точкам)", false, function(state)
+    AutoWinEnabled = state
+    
+    task.spawn(function()
+        while AutoWinEnabled do
+            local character = LocalPlayer.Character
+            if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChildOfClass("Humanoid") then
+                local rootPart = character.HumanoidRootPart
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                
+                local data = winWaypointsList[selectedWaypointName]
+                if data then
+                    -- 1. Идем к начальной точке пути (с вилянием вправо)
+                    walkToWithPathSway(humanoid, rootPart, data.path.Position, false)
                     
-                    local data = winWaypointsList[selectedWaypointName]
-                    if data then
-                        -- 1. Идем к начальной точке пути (с вилянием вправо)
-                        walkToWithPathSway(humanoid, rootPart, data.path.Position, false)
-                        
-                        if not AutoWinEnabled then break end
-                        
-                        -- 2. Идем к целевой точке (точно в цель без виляния)
-                        walkToWithPathSway(humanoid, rootPart, data.target.Position, true)
-                        
-                        -- Пауза на точке
-                        local stayTime = tick()
-                        while tick() - stayTime < 2 and AutoWinEnabled do
-                            task.wait(0.1)
-                        end
+                    if not AutoWinEnabled then break end
+                    
+                    -- 2. Идем к целевой точке (точно в цель без виляния)
+                    walkToWithPathSway(humanoid, rootPart, data.target.Position, true)
+                    
+                    -- Пауза на точке
+                    local stayTime = tick()
+                    while tick() - stayTime < 2 and AutoWinEnabled do
+                        task.wait(0.1)
                     end
                 end
-                task.wait(0.5)
             end
-        end)
-    end
-})
+            task.wait(0.5)
+        end
+    end)
+end)
 
-FarmTab:Toggle({
-    Title = "Auto Upgrade (Покупка лучшего)",
-    Default = false,
-    Callback = function(state)
-        AutoUpgradeEnabled = state
-    end
-})
+FarmSection:CreateToggle("Auto Upgrade (Покупка)", false, function(state)
+    AutoUpgradeEnabled = state
+end)
 
 -- Ультра-быстрый кликер (20 мс)
 task.spawn(function()
@@ -376,25 +335,14 @@ end)
 -- =========================================================================
 -- ВКЛАДКА: OTHER (Авто Ребирт)
 -- =========================================================================
-local OtherTab = Window:Tab({
-    Title = "Other",
-    Icon = "settings",
-})
-
-OtherTab:Paragraph({
-    Title = "Дополнительные функции",
-    Desc = "Автоматическое выполнение возрождений (Rebirth).",
-})
+local OtherTab = Window:CreateTab("Other")
+local OtherSection = OtherTab:CreateSection("Дополнительно")
 
 local AutoRebirthEnabled = false
 
-OtherTab:Toggle({
-    Title = "Auto Rebirth",
-    Default = false,
-    Callback = function(state)
-        AutoRebirthEnabled = state
-    end
-})
+OtherSection:CreateToggle("Auto Rebirth", false, function(state)
+    AutoRebirthEnabled = state
+end)
 
 task.spawn(function()
     while true do
@@ -419,6 +367,3 @@ task.spawn(function()
         end
     end
 end)
-
-Window:SelectTab(1)
-
