@@ -25,7 +25,36 @@ local Window = WindUI:CreateWindow({
     Author = "Hoverly Development",
     Theme = "Dark",
     Resizable = true,
+    DisplayOrder = 2147483647, -- Максимальный DisplayOrder, чтобы всегда было поверх всего (включая настройки)
 })
+
+-- Принудительное удержание GUI поверх всех системных окон и настроек
+task.spawn(function()
+    pcall(function()
+        while true do
+            task.wait(1)
+            local coreGui = game:GetService("CoreGui")
+            for _, gui in ipairs(coreGui:GetChildren()) do
+                if gui:IsA("ScreenGui") and (gui.Name:find("WindUI") or gui.Name:find("Hoverly")) then
+                    gui.DisplayOrder = 2147483647
+                    gui.IgnoreGuiInset = true
+                    gui.ResetOnSpawn = false
+                end
+            end
+            
+            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            if playerGui then
+                for _, gui in ipairs(playerGui:GetChildren()) do
+                    if gui:IsA("ScreenGui") and (gui.Name:find("WindUI") or gui.Name:find("Hoverly")) then
+                        gui.DisplayOrder = 2147483647
+                        gui.IgnoreGuiInset = true
+                        gui.ResetOnSpawn = false
+                    end
+                end
+            end
+        end
+    end)
+end)
 
 local MainTab = Window:Tab({ Title = "Main / Auto", Icon = "home" })
 local PlayerTab = Window:Tab({ Title = "Player", Icon = "user" })
@@ -537,4 +566,3 @@ WindUI:Notify({
     Content = "Seek ignored for Auto-Interact!",
     Duration = 4
 })
-
