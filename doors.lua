@@ -1,14 +1,15 @@
 --[[
     Project: Hoverly Script | DOORS (All Floors + Rooms, Smart Hide/Sit & Excluded Seek/Paintings/Vending)
     Features: Multi-Floor ESP, Smart Auto-Interact (No Seek, Paintings, Vending), All Entities ESP
+    UI: NodiumUI
 ]]
 
-local success, WindUI = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+local success, VantaUI = pcall(function()
+    return loadstring(game:HttpGet("https://github.com/BNDPA/NodiumUI/raw/refs/heads/main/Latest.lua"))()
 end)
 
-if not success or not WindUI then
-    warn("Failed to load Wind UI for DOORS script!")
+if not success or not VantaUI then
+    warn("Failed to load NodiumUI for DOORS script!")
     return
 end
 
@@ -19,13 +20,12 @@ local RunService = game:GetService("RunService")
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
-local Window = WindUI:CreateWindow({
-    Title = "Hoverly Script | DOORS (Advanced)",
-    Icon = "door-closed",
-    Author = "Hoverly Development",
-    Theme = "Dark",
-    Resizable = true,
-    DisplayOrder = 2147483647, -- Максимальный DisplayOrder, чтобы всегда было поверх всего (включая настройки)
+-- 1. Создание главного окна
+local Window = VantaUI:Window({
+    title = "Hoverly Script | DOORS (Advanced)",
+    width = 700,
+    height = 450,
+    DisplayOrder = 2147483647 -- Максимальный приоритет слоя, чтобы быть поверх настроек
 })
 
 -- Принудительное удержание GUI поверх всех системных окон и настроек
@@ -35,7 +35,7 @@ task.spawn(function()
             task.wait(1)
             local coreGui = game:GetService("CoreGui")
             for _, gui in ipairs(coreGui:GetChildren()) do
-                if gui:IsA("ScreenGui") and (gui.Name:find("WindUI") or gui.Name:find("Hoverly")) then
+                if gui:IsA("ScreenGui") and (gui.Name:lower():find("vanta") or gui.Name:lower():find("nodium") or gui.Name:lower():find("hoverly")) then
                     gui.DisplayOrder = 2147483647
                     gui.IgnoreGuiInset = true
                     gui.ResetOnSpawn = false
@@ -45,7 +45,7 @@ task.spawn(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
                 for _, gui in ipairs(playerGui:GetChildren()) do
-                    if gui:IsA("ScreenGui") and (gui.Name:find("WindUI") or gui.Name:find("Hoverly")) then
+                    if gui:IsA("ScreenGui") and (gui.Name:lower():find("vanta") or gui.Name:lower():find("nodium") or gui.Name:lower():find("hoverly")) then
                         gui.DisplayOrder = 2147483647
                         gui.IgnoreGuiInset = true
                         gui.ResetOnSpawn = false
@@ -56,10 +56,20 @@ task.spawn(function()
     end)
 end)
 
-local MainTab = Window:Tab({ Title = "Main / Auto", Icon = "home" })
-local PlayerTab = Window:Tab({ Title = "Player", Icon = "user" })
-local ESPTab = Window:Tab({ Title = "Multi-Floor ESP", Icon = "eye" })
-local WorldTab = Window:Tab({ Title = "World", Icon = "globe" })
+-- 2. Плавающая передвигаемая кнопка-круг (Скрытие / Показ UI по клику)
+local toggleCircle = Window:CreateDraggableCircle("rbxassetid://6023426915")
+
+-- 3. Создание вкладок
+local MainTab = Window:CreateTab("Main / Auto")
+local PlayerTab = Window:CreateTab("Player")
+local ESPTab = Window:CreateTab("ESP")
+local WorldTab = Window:CreateTab("World")
+
+-- 4. Создание секций
+local MainSection = MainTab:CreateSection("Управление и Автоматизация")
+local PlayerSection = PlayerTab:CreateSection("Игрок")
+local ESPSection = ESPTab:CreateSection("Подсветка (ESP)")
+local WorldSection = WorldTab:CreateSection("Мир и Окружение")
 
 local noclipEnabled = false
 local speedEnabled = false
@@ -105,23 +115,13 @@ end
 -- =================================================================
 -- 1. ALL ENTITIES NOTIFIER & SCREECH AUTO CHECK
 -- =================================================================
-MainTab:Toggle({
-    Title = "Entity Notifier (Notice)",
-    Description = "Warns you when ANY entity spawns (Rush, Ambush, A-60, A-90, A-120, Figure, Seek, etc).",
-    Value = false,
-    Callback = function(state)
-        entityNotifierEnabled = state
-    end
-})
+MainSection:CreateToggle("Entity Notifier (Notice)", false, function(state)
+    entityNotifierEnabled = state
+end)
 
-MainTab:Toggle({
-    Title = "Auto Check Screech",
-    Description = "Automatically turns your camera to look at Screech instantly.",
-    Value = false,
-    Callback = function(state)
-        autoCheckScreechEnabled = state
-    end
-})
+MainSection:CreateToggle("Auto Check Screech", false, function(state)
+    autoCheckScreechEnabled = state
+end)
 
 local monitoredEntities = {
     ["RushMoving"] = "Rush is coming! HIDE NOW!",
@@ -149,11 +149,7 @@ Workspace.ChildAdded:Connect(function(child)
         end
 
         if entityNotifierEnabled then
-            WindUI:Notify({
-                Title = "⚠️ WARNING: " .. name,
-                Content = monitoredEntities[name] or ("Dangerous entity " .. name .. " spawned!"),
-                Duration = 4
-            })
+            warn("⚠️ WARNING: " .. name .. " -> " .. (monitoredEntities[name] or "Dangerous entity spawned!"))
         end
     end
 end)
@@ -204,23 +200,13 @@ end)
 -- =================================================================
 -- 2. PLAYER UTILITIES (Smart NoClip & Speed)
 -- =================================================================
-PlayerTab:Toggle({
-    Title = "Smart NoClip (Small Parts Only)",
-    Description = "Walks through small hitboxes, chairs, and obstacles without falling through walls/floors.",
-    Value = false,
-    Callback = function(state)
-        noclipEnabled = state
-    end
-})
+PlayerSection:CreateToggle("Smart NoClip (Small Parts Only)", false, function(state)
+    noclipEnabled = state
+end)
 
-PlayerTab:Toggle({
-    Title = "Speed (20)",
-    Description = "Sets your walk speed to 20 instead of default 16.",
-    Value = false,
-    Callback = function(state)
-        speedEnabled = state
-    end
-})
+PlayerSection:CreateToggle("Speed (20)", false, function(state)
+    speedEnabled = state
+end)
 
 RunService.Stepped:Connect(function()
     local char = LocalPlayer.Character
@@ -257,154 +243,122 @@ end)
 -- =================================================================
 -- 3. AUTO INTERACT (Игнор автоматов, картин, сидений и Сика)
 -- =================================================================
-MainTab:Toggle({
-    Title = "Auto Open Doors, Keys, Levers & Lockers",
-    Description = "Interacts with doors, keys, levers. Seats & lockers auto-hide ONLY during standard raids. Vending, Paintings & Seek ignored.",
-    Value = false,
-    Callback = function(state)
-        autoInteractEnabled = state
-        task.spawn(function()
-            while autoInteractEnabled do
-                task.wait(0.2)
-                pcall(function()
-                    local char = LocalPlayer.Character
-                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        for _, obj in pairs(Workspace:GetDescendants()) do
-                            if obj:IsA("ProximityPrompt") then
-                                local actionText = obj.ActionText:lower()
-                                local parent = obj.Parent
-                                local parentName = parent and parent.Name:lower() or ""
-                                local grandparent = parent and parent.Parent
-                                local grandparentName = grandparent and grandparent.Name:lower() or ""
-                                
-                                local isIgnored = false
+MainSection:CreateToggle("Auto Open Doors, Keys, Levers & Lockers", false, function(state)
+    autoInteractEnabled = state
+    task.spawn(function()
+        while autoInteractEnabled do
+            task.wait(0.2)
+            pcall(function()
+                local char = LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    for _, obj in pairs(Workspace:GetDescendants()) do
+                        if obj:IsA("ProximityPrompt") then
+                            local actionText = obj.ActionText:lower()
+                            local parent = obj.Parent
+                            local parentName = parent and parent.Name:lower() or ""
+                            local grandparent = parent and parent.Parent
+                            local grandparentName = grandparent and grandparent.Name:lower() or ""
+                            
+                            local isIgnored = false
 
-                                -- 1. Полный игнор автоматов, магазинов, картин и объектов Сика (Seek)
-                                if parentName:find("vending") or parentName:find("shop") or parentName:find("jeff") or 
-                                   parentName:find("painting") or parentName:find("portrait") or parentName:find("canvas") or
-                                   parentName:find("seek") or grandparentName:find("seek") or actionText:find("seek") or
-                                   grandparentName:find("vending") or grandparentName:find("shop") or actionText:find("buy") then
+                            if parentName:find("vending") or parentName:find("shop") or parentName:find("jeff") or 
+                               parentName:find("painting") or parentName:find("portrait") or parentName:find("canvas") or
+                               parentName:find("seek") or grandparentName:find("seek") or actionText:find("seek") or
+                               grandparentName:find("vending") or grandparentName:find("shop") or actionText:find("buy") then
+                                isIgnored = true
+                            end
+
+                            local isHideOrSit = actionText:find("hide") or actionText:find("enter") or actionText:find("sit") or
+                                                 parentName:find("wardrobe") or parentName:find("closet") or parentName:find("bed") or 
+                                                 parentName:find("locker") or parentName:find("chair") or parentName:find("seat") or parentName:find("bench")
+
+                            if isHideOrSit then
+                                if not monsterActive then
                                     isIgnored = true
                                 end
+                            end
 
-                                -- 2. Логика для укрытий и сидений
-                                local isHideOrSit = actionText:find("hide") or actionText:find("enter") or actionText:find("sit") or
-                                                     parentName:find("wardrobe") or parentName:find("closet") or parentName:find("bed") or 
-                                                     parentName:find("locker") or parentName:find("chair") or parentName:find("seat") or parentName:find("bench")
-
-                                if isHideOrSit then
-                                    if not monsterActive then
-                                        isIgnored = true
+                            if not isIgnored then
+                                local targetPart = nil
+                                if parent then
+                                    if parent:IsA("BasePart") then
+                                        targetPart = parent
+                                    elseif parent:IsA("Model") then
+                                        targetPart = parent.PrimaryPart or parent:FindFirstChildWhichIsA("BasePart")
                                     end
                                 end
 
-                                if not isIgnored then
-                                    local targetPart = nil
-                                    if parent then
-                                        if parent:IsA("BasePart") then
-                                            targetPart = parent
-                                        elseif parent:IsA("Model") then
-                                            targetPart = parent.PrimaryPart or parent:FindFirstChildWhichIsA("BasePart")
-                                        end
-                                    end
-
-                                    if targetPart and targetPart:IsA("BasePart") then
-                                        if (hrp.Position - targetPart.Position).Magnitude <= 14 then
-                                            fireproximityprompt(obj)
-                                        end
+                                if targetPart and targetPart:IsA("BasePart") then
+                                    if (hrp.Position - targetPart.Position).Magnitude <= 14 then
+                                        fireproximityprompt(obj)
                                     end
                                 end
                             end
                         end
                     end
-                end)
-            end
-        end)
-    end
-})
+                end
+            end)
+        end
+    end)
+end)
 
-MainTab:Toggle({
-    Title = "Auto Books & Puzzles (Library / Mines)",
-    Description = "Automatically gathers books in Room 50, breaker boxes in Mines, and solves key-locks.",
-    Value = false,
-    Callback = function(state)
-        autoKeyEnabled = state
-        task.spawn(function()
-            while autoKeyEnabled do
-                task.wait(0.5)
-                pcall(function()
-                    local char = LocalPlayer.Character
-                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                    if not hrp then return end
+MainSection:CreateToggle("Auto Books & Puzzles", false, function(state)
+    autoKeyEnabled = state
+    task.spawn(function()
+        while autoKeyEnabled do
+            task.wait(0.5)
+            pcall(function()
+                local char = LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
 
-                    local rooms = Workspace:FindFirstChild("CurrentRooms")
-                    if rooms then
-                        for _, room in pairs(rooms:GetChildren()) do
-                            for _, item in pairs(room:GetDescendants()) do
-                                if (item.Name == "LiveHintBook" or item.Name:lower():find("breaker")) and item:FindFirstChild("Prompt") then
-                                    local prompt = item.Prompt
-                                    local targetPart = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
-                                    if targetPart and (hrp.Position - targetPart.Position).Magnitude < 15 then
-                                        fireproximityprompt(prompt)
-                                    end
-                                end
-                            end
-
-                            local door = room:FindFirstChild("Door")
-                            local padlock = door and door:FindFirstChild("Padlock")
-                            if padlock then
-                                local prompt = padlock:FindFirstChild("Prompt") or padlock:FindFirstChildWhichIsA("ProximityPrompt")
-                                if prompt and (hrp.Position - padlock.Position).Magnitude < 12 then
+                local rooms = Workspace:FindFirstChild("CurrentRooms")
+                if rooms then
+                    for _, room in pairs(rooms:GetChildren()) do
+                        for _, item in pairs(room:GetDescendants()) do
+                            if (item.Name == "LiveHintBook" or item.Name:lower():find("breaker")) and item:FindFirstChild("Prompt") then
+                                local prompt = item.Prompt
+                                local targetPart = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
+                                if targetPart and (hrp.Position - targetPart.Position).Magnitude < 15 then
                                     fireproximityprompt(prompt)
                                 end
                             end
                         end
+
+                        local door = room:FindFirstChild("Door")
+                        local padlock = door and door:FindFirstChild("Padlock")
+                        if padlock then
+                            local prompt = padlock:FindFirstChild("Prompt") or padlock:FindFirstChildWhichIsA("ProximityPrompt")
+                            if prompt and (hrp.Position - padlock.Position).Magnitude < 12 then
+                                fireproximityprompt(prompt)
+                            end
+                        end
                     end
-                end)
-            end
-        end)
-    end
-})
+                end
+            end)
+        end
+    end)
+end)
 
 -- =================================================================
 -- 4. MULTI-FLOOR & ROOMS ESP
 -- =================================================================
-ESPTab:Toggle({
-    Title = "ESP Doors, Keys, Levers, Books & Breakers",
-    Description = "Highlights progression items strictly inside active rooms.",
-    Value = false,
-    Callback = function(state)
-        espItemsEnabled = state
-    end
-})
+ESPSection:CreateToggle("ESP Doors, Keys, Levers, Books", false, function(state)
+    espItemsEnabled = state
+end)
 
-ESPTab:Toggle({
-    Title = "ESP Closets / Hiding Spots / Lockers",
-    Description = "Highlights wardrobes, lockers, beds, and safe hiding spots in purple.",
-    Value = false,
-    Callback = function(state)
-        espClosetsEnabled = state
-    end
-})
+ESPSection:CreateToggle("ESP Closets / Hiding Spots", false, function(state)
+    espClosetsEnabled = state
+end)
 
-ESPTab:Toggle({
-    Title = "ESP Players",
-    Description = "Highlights other players in blue.",
-    Value = false,
-    Callback = function(state)
-        espPlayersEnabled = state
-    end
-})
+ESPSection:CreateToggle("ESP Players", false, function(state)
+    espPlayersEnabled = state
+end)
 
-ESPTab:Toggle({
-    Title = "ESP ALL Monsters / Entities",
-    Description = "Highlights ALL incoming entities across ALL floors (Rush, Ambush, A-60, A-120, Figure, Seek, etc.) in red.",
-    Value = false,
-    Callback = function(state)
-        espEntitiesEnabled = state
-    end
-})
+ESPSection:CreateToggle("ESP ALL Monsters / Entities", false, function(state)
+    espEntitiesEnabled = state
+end)
 
 task.spawn(function()
     while true do
@@ -543,26 +497,15 @@ end)
 -- =================================================================
 -- 5. WORLD (FULLBRIGHT)
 -- =================================================================
-WorldTab:Toggle({
-    Title = "Fullbright",
-    Description = "Removes dark areas and makes everything bright.",
-    Value = false,
-    Callback = function(state)
-        if state then
-            Lighting.Brightness = 2
-            Lighting.ClockTime = 14
-            Lighting.FogEnd = 100000
-            Lighting.GlobalShadows = false
-        else
-            Lighting.Brightness = 1
-            Lighting.ClockTime = 0
-            Lighting.GlobalShadows = true
-        end
+WorldSection:CreateToggle("Fullbright", false, function(state)
+    if state then
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 14
+        Lighting.FogEnd = 100000
+        Lighting.GlobalShadows = false
+    else
+        Lighting.Brightness = 1
+        Lighting.ClockTime = 0
+        Lighting.GlobalShadows = true
     end
-})
-
-WindUI:Notify({
-    Title = "Hoverly Script Updated",
-    Content = "Seek ignored for Auto-Interact!",
-    Duration = 4
-})
+end)
