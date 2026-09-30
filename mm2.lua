@@ -1,6 +1,6 @@
 --[[
     Project: Hoverly | Murder Mystery 2
-    UI Library: VantaUI v4.5 (Full Features + Spider + Dynamic Skin Changer + Arrows + China Hat + Advanced Fling & Anti-Fling)
+    UI Library: VantaUI v4.5 (Full Features + Spider + Dynamic Skin Changer + Arrows + China Hat + Advanced Fling & Anti-Fling + AutoShot)
 ]]
 
 local Services = {
@@ -462,10 +462,7 @@ function VantaUI:Window(cfg)
                 local row = new("Frame", {
                     Size = UDim2.new(1, 0, 0, 26), BackgroundTransparency = 1,
                     ZIndex = 5,
-                }, row or wrap) -- безопасный родитель
-                
-                -- Переопределяем row для структуры
-                row.Parent = wrap
+                }, wrap)
                 
                 local lbl = new("TextLabel", {
                     Size = UDim2.new(1, -110, 0, 26), BackgroundTransparency = 1,
@@ -1317,11 +1314,170 @@ end)
 farmSec:CreateToggle("Auto Farm Coins", false, function(state) FarmSettings.Enabled = state end)
 farmSec:CreateSlider("Tween Speed", 10, 100, 25, function(val) FarmSettings.Speed = val end)
 
--- 5. COMBAT TAB (Без аимбота)
+-- 5. COMBAT TAB (Интегрирован твой авто-шот + кнопка F)
 local combatSec = combatTab:CreateSection("Combat & Status")
-combatSec:CreateToggle("Murderer Kill Aura", false, function(state) end)
-combatSec:CreateToggle("Auto Shot Murderer", false, function(state) end)
-combatSec:CreateToggle("Auto Grab Gun (Sheriff Drop)", false, function(state) end)
+
+-- Интеграция Auto Shot
+local autoShotEnabled = true
+
+combatSec:CreateToggle("Auto Shot (Вкл/Выкл [F])", true, function(state)
+    autoShotEnabled = state
+end)
+
+-- Создаем невидимую часть для предсказания (Prediction)
+local predPart = Instance.new("Part")
+predPart.Anchored    = true
+predPart.CanCollide  = false
+predPart.Transparency = 1
+predPart.Size        = Vector3.new(0.1, 0.1, 0.1)
+predPart.Parent      = workspace
+
+-- Обработка нажатия клавиши F для переключения Auto Shot
+UserInputService.InputBegan:Connect(function(inp, gpe)
+    if gpe then return end
+    if inp.KeyCode == Enum.KeyCode.F then
+        autoShotEnabled = not autoShotEnabled
+        print("AutoShot [F]:", autoShotEnabled)
+    end
+end)
+
+-- Логика выбора цели
+local function findTarget(myHRP)
+    local myChar = LocalPlayer.Character
+    local myKnife = LocalPlayer.Backpack:FindFirstChild("Knife") or (myChar and myChar:FindFirstChild("Knife"))
+    local myGun   = LocalPlayer.Backpack:FindFirstChild("Gun")   or (myChar and myChar:FindFirstChild("Gun"))
+
+    local best, bestDist = nil, math.huge
+
+    for _, p in Players:GetPlayers() do
+        if p == LocalPlayer then continue end
+        local char = p.Character
+        if not char then continue end
+        local hum  = char:FindFirstChildOfClass("Humanoid")
+        local hrp  = char:FindFirstChild("HumanoidRootPart")
+        if not hum or not hrp or hum.Health <= 0 then continue end
+
+        local theirKnife = p.Backpack:FindFirstChild("Knife") or char:FindFirstChild("Knife")
+        local theirGun   = p.Backpack:FindFirstChild("Gun")   or char:FindFirstChild("Gun")
+
+        local valid = false
+        local dist  = (hrp.Position - myHRP.Position).Magnitude
+
+        if myKnife then
+            valid = theirKnife ~= nil
+        elseif myGun then
+            if theirKnife then valid = true; dist = dist - 1000 end
+            if theirGun   then valid = true end
+        else
+            valid = (theirKnife or theirGun) ~= nil
+        end
+
+        if not valid then continue end
+        if dist < bestDist then
+            bestDist = dist
+            best = char
+        end
+    end
+
+    if not best then
+        for _, p in Players:GetPlayers() do
+            if p == LocalPlayer then continue end
+            local char = p.Character
+            if not char then continue end
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hum or not hrp or hum.Health <= 0 then continue end
+            local dist = (hrp.Position - myHRP.Position).Magnitude
+            if dist < bestDist then
+                bestDist = dist
+                best = char
+            end
+        end
+    end
+
+    return best
+end
+
+-- Обновление позиции предсказания каждый кадр
+RunService.RenderStepped:Connect(function()
+    if not autoShotEnabled then return end
+    local myChar = LocalPlayer.Character
+    local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myHRP then return end
+
+    local target = findTarget(myHRP)
+    if not target then return end
+
+    local torso = target:FindFirstChild("UpperTorso")
+               or target:FindFirstChild("Torso")
+               or target:FindFirstChild("HumanoidRootPart")
+    local hum   = target:FindFirstChildOfClass("Humanoid")
+    if not torso then return end
+
+    local pos  = torso.Position
+    local dist = (pos - myHRP.Position).Magnitude
+
+    local travelTime = dist / 250
+
+    local ok, ping = pcall(function() return LocalPlayer:GetNetworkPing() end)
+    if ok and ping then travelTime = travelTime + ping * 0.5 end
+
+    local vel = torso.AssemblyLinearVelocity
+
+    if hum then
+        local state = hum:GetState()
+        if state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Jumping then
+            vel = Vector3.new(vel.X, vel.Y * 0.35, vel.Z)
+        end
+    end
+
+    predPart.CFrame = CFrame.new(pos + vel * travelTime)
+end)
+
+local function equipGun()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local gun = LocalPlayer.Backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun")
+    if not gun then return end
+    if gun.Parent == char then return end
+    char.Humanoid:EquipTool(gun)
+    task.wait(0)
+end
+
+local lastShot = 0
+local FIRE_RATE = 0.18
+
+RunService.Heartbeat:Connect(function()
+    if not autoShotEnabled then return end
+
+    local myChar = LocalPlayer.Character
+    local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myHRP then return end
+
+    local t = tick()
+    if t - lastShot < FIRE_RATE then return end
+
+    equipGun()
+
+    local gun = myChar:FindFirstChild("Gun")
+    if not gun then return end
+
+    local shootRemote = gun:FindFirstChild("Shoot")
+    if not shootRemote then return end
+
+    local targetPos = predPart.CFrame.Position
+    local myPos     = myHRP.Position + Vector3.new(0, 1, 0)
+
+    pcall(function()
+        shootRemote:FireServer(
+            CFrame.new(myPos, targetPos),
+            CFrame.new(targetPos)
+        )
+    end)
+
+    lastShot = t
+end)
+
 
 -- 6. TROLL TAB (Anti-Fling + Advanced Fling с обновляемым списком игроков)
 local trollSec = trollTab:CreateSection("Troll & Physics")
@@ -1373,7 +1529,6 @@ local flingDropdown = trollSec:CreateDropdown("Цель для Fling", getPlayer
     targetFlingPlayer = selected
 end)
 
--- Автообновление списка игроков при подключении/отключении
 Players.PlayerAdded:Connect(function()
     pcall(function()
         flingDropdown:Refresh(getPlayersList())
@@ -1447,4 +1602,4 @@ trollSec:CreateToggle("Запустить Fling (Краш/Раскид)", false,
     end)
 end)
 
-print("Hoverly Script successfully loaded without Aimbot & with Dynamic Fling Player Selector!")
+print("Hoverly Script successfully loaded with Integrated AutoShot & Dynamic Fling Player Selector!")
