@@ -23,6 +23,7 @@ MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
 MainFrame.Position = UDim2.new(0.5, -110, 0.5, -100)
 MainFrame.Size = UDim2.new(0, 220, 0, 195)
 MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
 
 -- Скругление углов
 local UICorner = Instance.new("UICorner")
@@ -47,7 +48,7 @@ local TopBarCorner = Instance.new("UICorner")
 TopBarCorner.CornerRadius = UDim.new(0, 8)
 TopBarCorner.Parent = TopBar
 
--- Исправление нижних углов шапки, чтобы они были прямыми
+-- Исправление нижних углов шапки
 local FixCorner = Instance.new("Frame")
 FixCorner.Parent = TopBar
 FixCorner.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
@@ -67,31 +68,19 @@ Title.TextColor3 = Color3.fromRGB(240, 240, 245)
 Title.TextSize = 13
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
--- Контейнер для кнопок
-local Container = Instance.new("UIListLayout")
-Container.Parent = MainFrame
-Container.HorizontalAlignment = Enum.HorizontalAlignment.Center
-Container.SortOrder = Enum.SortOrder.LayoutOrder
-Container.Padding = UDim.new(0, 8)
-
--- Отступ сверху для контейнера
-local Padding = Instance.new("UIPadding")
-Padding.Parent = MainFrame
-Padding.PaddingTop = UDim.new(0, 42)
-
--- Функция создания стилизованной кнопки
-local function createButton(text, order)
+-- Функция создания фиксированной стилизованной кнопки
+local function createButton(text, posY)
     local btn = Instance.new("TextButton")
     btn.Name = text .. "Btn"
     btn.Parent = MainFrame
     btn.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
+    btn.Position = UDim2.new(0, 12, 0, posY)
     btn.Size = UDim2.new(0, 196, 0, 36)
     btn.AutoButtonColor = false
     btn.Font = Enum.Font.GothamMedium
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(200, 200, 210)
     btn.TextSize = 12
-    btn.LayoutOrder = order
 
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 6)
@@ -116,10 +105,10 @@ local function createButton(text, order)
     return btn
 end
 
--- Создаем кнопки
-local LegitBtn = createButton("Legit", 1)
-local SemiRageBtn = createButton("Semi-Rage", 2)
-local RageBtn = createButton("Rage", 3)
+-- Создаем кнопки с точным отступом по вертикали (Y)
+local LegitBtn = createButton("Legit", 46)
+local SemiRageBtn = createButton("Semi-Rage", 90)
+local RageBtn = createButton("Rage", 134)
 
 -- Функция вывода всплывающего уведомления
 local function showNotify(text)
@@ -131,7 +120,7 @@ local function showNotify(text)
     notify.Name = "NotifyText"
     notify.Parent = MainFrame
     notify.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-    notify.Position = UDim2.new(0, 12, 1, -30)
+    notify.Position = UDim2.new(0, 12, 1, -28)
     notify.Size = UDim2.new(0, 196, 0, 22)
     notify.Font = Enum.Font.Gotham
     notify.Text = text
@@ -154,10 +143,11 @@ local function showNotify(text)
     end)
 end
 
--- Логика кнопок (ссылка берется из твоего репозитория Hoverly-Script)
+-- Логика кнопок
 local REPO_URL = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/refs/heads/main/"
 
 LegitBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy() -- Закрываем меню при нажатии[span_2](start_span)[span_2](end_span)
     pcall(function()
         loadstring(game:HttpGet(REPO_URL .. "mm2_legit.lua"))()
     end)
@@ -168,12 +158,13 @@ SemiRageBtn.MouseButton1Click:Connect(function()
 end)
 
 RageBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy() -- Закрываем меню при нажатии[span_3](start_span)[span_3](end_span)
     pcall(function()
         loadstring(game:HttpGet(REPO_URL .. "mm2_rage.lua"))()
     end)
 end)
 
--- Перетаскивание меню (для ПК и сенсорных экранов телефонов)
+-- Перетаскивание меню (для ПК и телефонов)
 local dragging, dragInput, dragStart, startPos
 
 TopBar.InputBegan:Connect(function(input)
