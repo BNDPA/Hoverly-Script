@@ -1,6 +1,6 @@
 --[[
     Project: Hoverly | Murder Mystery 2
-    UI Library: VantaUI v4.5 (Full Features + Spider + Arrows + China Hat + Advanced Fling & Anti-Fling + AutoShot + KillAll + AutoGrabGun + AutoThrow)
+    UI Library: VantaUI v4.5 (Cleaned & Optimized)
 ]]
 
 local Services = {
@@ -81,7 +81,6 @@ local TweenService     = game:GetService("TweenService")
 local CoreGui          = game:GetService("CoreGui")
 local RunService       = game:GetService("RunService")
 local Workspace        = game:GetService("Workspace")
-local Lighting         = game:GetService("Lighting")
 local LocalPlayer      = Players.LocalPlayer
 
 local THEME = {
@@ -453,96 +452,6 @@ function VantaUI:Window(cfg)
                 }
             end
 
-            function section:CreateDropdown(name, options, default, callback)
-                options = options or {}
-                local selected = default or options[1] or "Выбрать"
-                local opened = false
-
-                local row = new("Frame", {
-                    Size = UDim2.new(1, 0, 0, 26), BackgroundTransparency = 1,
-                    ZIndex = 5,
-                }, wrap)
-
-                new("TextLabel", {
-                    Size = UDim2.new(1, -110, 0, 26), BackgroundTransparency = 1,
-                    Font = FONT_MED, Text = name or "Dropdown", TextColor3 = THEME.text,
-                    TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
-                    ZIndex = 6,
-                }, row)
-
-                local mainBtn = new("TextButton", {
-                    AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 3),
-                    Size = UDim2.fromOffset(115, 20),
-                    BackgroundColor3 = THEME.row, BorderSizePixel = 0,
-                    Font = FONT_MED, Text = tostring(selected) .. " ▾", TextColor3 = THEME.text_dim,
-                    TextSize = 11, AutoButtonColor = false,
-                    ZIndex = 6, ClipsDescendants = true,
-                }, row)
-                corner(mainBtn, 4); stroke(mainBtn, THEME.border, 1, 0.4)
-
-                local listFrame = new("Frame", {
-                    Size = UDim2.new(1, 0, 0, 0),
-                    AutomaticSize = Enum.AutomaticSize.Y,
-                    BackgroundColor3 = THEME.bg, BorderSizePixel = 0,
-                    Visible = false, ZIndex = 50,
-                }, win.gui)
-                corner(listFrame, 6); stroke(listFrame, THEME.border, 1, 0)
-                new("UIListLayout", { Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder }, listFrame)
-                new("UIPadding", { PaddingTop = UDim.new(0, 4), PaddingBottom = UDim.new(0, 4), PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 4) }, listFrame)
-
-                local function updateDropdownPos()
-                    local absPos = mainBtn.AbsolutePosition
-                    local absSize = mainBtn.AbsoluteSize
-                    listFrame.Position = UDim2.fromOffset(absPos.X, absPos.Y + absSize.Y + 4)
-                    listFrame.Size = UDim2.fromOffset(math.max(absSize.X, 120), 0)
-                end
-
-                local function closeList()
-                    if not opened then return end
-                    opened = false; listFrame.Visible = false
-                end
-
-                local function openList()
-                    if opened then return end
-                    opened = true; updateDropdownPos(); listFrame.Visible = true
-                end
-
-                mainBtn.MouseButton1Click:Connect(function()
-                    if opened then closeList() else openList() end
-                end)
-
-                local function refreshOptions(newOpts)
-                    if newOpts then options = newOpts end
-                    for _, child in ipairs(listFrame:GetChildren()) do
-                        if child:IsA("TextButton") then child:Destroy() end
-                    end
-                    for _, opt in ipairs(options) do
-                        local optBtn = new("TextButton", {
-                            Size = UDim2.new(1, 0, 0, 20),
-                            BackgroundColor3 = (opt == selected) and THEME.accent_bg or THEME.row,
-                            BorderSizePixel = 0, Font = FONT_MED,
-                            Text = tostring(opt), TextColor3 = (opt == selected) and THEME.text or THEME.text_dim,
-                            TextSize = 11, AutoButtonColor = false, ZIndex = 51,
-                        }, listFrame)
-                        corner(optBtn, 4)
-                        optBtn.MouseButton1Click:Connect(function()
-                            selected = opt
-                            mainBtn.Text = tostring(selected) .. " ▾"
-                            closeList()
-                            if callback then callback(selected) end
-                            refreshOptions()
-                        end)
-                    end
-                end
-                refreshOptions()
-
-                return {
-                    Set = function(_, v) selected = v; mainBtn.Text = tostring(selected) .. " ▾"; refreshOptions() end,
-                    Get = function() return selected end,
-                    Refresh = function(_, newOptions) refreshOptions(newOptions) end,
-                }
-            end
-
             function section:CreateSlider(name, min, max, default, callback)
                 min, max = min or 0, max or 100
                 local step  = 1
@@ -661,149 +570,34 @@ local visualTab = win:CreateTab("Visuals")
 local farmTab   = win:CreateTab("Auto Farm")
 local combatTab = win:CreateTab("Combat")
 local trollTab  = win:CreateTab("Troll")
-local worldTab  = win:CreateTab("World")
 
 -- =====================================================================
 -- 1. MAIN TAB
 -- =====================================================================
 
-local mainSec = mainTab:CreateSection("Movement & Spin")
-local spinbotEnabled     = false
-local spinbotSpeed       = 50
+local mainSec = mainTab:CreateSection("Movement")
 local speedGlitchEnabled = true
-local speedGlitchSpeed   = 50
-local spiderEnabled      = false
+local speedGlitchSpeed   = 20
 
-mainSec:CreateToggle("Spider (Wall/Ceiling Climb)", false, function(state) spiderEnabled = state end)
-mainSec:CreateToggle("Spinbot", false, function(state) spinbotEnabled = state end)
-mainSec:CreateSlider("Spinbot Speed", 10, 200, 50, function(val) spinbotSpeed = val end)
 mainSec:CreateToggle("SpeedGlitch", true, function(state) speedGlitchEnabled = state end)
-mainSec:CreateSlider("SpeedGlitch Value", 10, 200, 50, function(val) speedGlitchSpeed = val end)
+mainSec:CreateSlider("SpeedGlitch Value", 10, 60, 20, function(val) speedGlitchSpeed = val end)
 
-local wsValue = 16
-mainSec:CreateToggle("Enable WalkSpeed", false, function(state)
+mainSec:CreateToggle("Enable WalkSpeed (18)", false, function(state)
     getgenv().CustomWS = state
     task.spawn(function()
         while getgenv().CustomWS do
             task.wait(0.1)
-            pcall(function() LocalPlayer.Character.Humanoid.WalkSpeed = wsValue end)
+            pcall(function() LocalPlayer.Character.Humanoid.WalkSpeed = 18 end)
         end
         pcall(function() LocalPlayer.Character.Humanoid.WalkSpeed = 16 end)
     end)
-end)
-mainSec:CreateSlider("WalkSpeed Value", 16, 200, 16, function(v) wsValue = v end)
-
-local jpValue = 50
-mainSec:CreateToggle("Enable JumpPower", false, function(state)
-    getgenv().CustomJP = state
-    task.spawn(function()
-        while getgenv().CustomJP do
-            task.wait(0.1)
-            pcall(function()
-                LocalPlayer.Character.Humanoid.UseJumpPower = true
-                LocalPlayer.Character.Humanoid.JumpPower = jpValue
-            end)
-        end
-        pcall(function() LocalPlayer.Character.Humanoid.JumpPower = 50 end)
-    end)
-end)
-mainSec:CreateSlider("JumpPower Value", 50, 300, 50, function(v) jpValue = v end)
-
-local infJumpConn
-mainSec:CreateToggle("Infinite Jump", false, function(state)
-    if state then
-        infJumpConn = Services.UserInputService.JumpRequest:Connect(function()
-            pcall(function()
-                LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end)
-        end)
-    else
-        if infJumpConn then infJumpConn:Disconnect() end
-    end
-end)
-
-local noclipConn
-mainSec:CreateToggle("Noclip", false, function(state)
-    if state then
-        noclipConn = Services.RunService.Stepped:Connect(function()
-            pcall(function()
-                for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                    if part:IsA("BasePart") then part.CanCollide = false end
-                end
-            end)
-        end)
-    else
-        if noclipConn then noclipConn:Disconnect() end
-    end
-end)
-
-RunService.Stepped:Connect(function()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not hum then return end
-
-    if spiderEnabled then
-        local rayParams = RaycastParams.new()
-        rayParams.FilterType = Enum.RaycastFilterType.Exclude
-        rayParams.FilterDescendantsInstances = {char}
-
-        local origin = hrp.Position
-        local rayDirections = {
-            hrp.CFrame.LookVector, -hrp.CFrame.LookVector,
-            hrp.CFrame.RightVector, -hrp.CFrame.RightVector,
-            Vector3.new(0, 1, 0),
-        }
-
-        local closestHit = nil
-        local minDist = 3.5
-
-        for _, dir in ipairs(rayDirections) do
-            local result = Workspace:Raycast(origin, dir * minDist, rayParams)
-            if result and result.Instance and result.Instance.CanCollide then
-                if math.abs(result.Normal.Y) < 0.7 then
-                    closestHit = result; break
-                end
-            end
-        end
-
-        if closestHit then
-            hum.PlatformStand = true
-            local normal = closestHit.Normal
-            local currentCF = hrp.CFrame
-            local look = currentCF.LookVector
-            local right = normal:Cross(look).Unit
-            if right.Magnitude ~= right.Magnitude then right = currentCF.RightVector end
-            local up = normal
-            look = up:Cross(right).Unit
-            local targetCF = CFrame.fromMatrix(closestHit.Position + (normal * 2.2), look, up)
-            hrp.CFrame = hrp.CFrame:Lerp(targetCF, 0.3)
-            hrp.AssemblyLinearVelocity = Vector3.zero
-        else
-            hum.PlatformStand = false
-        end
-    else
-        if hum.PlatformStand and not hum.Sit then
-            hum.PlatformStand = false
-        end
-    end
-end)
-
-RunService.RenderStepped:Connect(function()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if hrp and spinbotEnabled then
-        hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(spinbotSpeed), 0)
-    end
 end)
 
 RunService.Heartbeat:Connect(function()
     local char = LocalPlayer.Character
     local hum  = char and char:FindFirstChildOfClass("Humanoid")
     local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-    if speedGlitchEnabled and hum and hrp and not spiderEnabled then
+    if speedGlitchEnabled and hum and hrp then
         if hum.FloorMaterial == Enum.Material.Air then
             local moveDir = hum.MoveDirection
             if moveDir.Magnitude > 0 then
@@ -1051,12 +845,8 @@ end)
 -- =====================================================================
 
 local farmSec = farmTab:CreateSection("Candy/Coin Farm")
-local FarmSettings = { Enabled = false, Speed = 25, Mode = "Nearest" }
+local FarmSettings = { Enabled = false, Speed = 25 }
 local FarmState    = { ignoredCoins = {}, currentTween = nil }
-
-farmSec:CreateDropdown("Farm Mode", {"Nearest", "Underground", "Sit"}, "Nearest", function(selected)
-    FarmSettings.Mode = selected
-end)
 
 local function getTorso(char)
     if not char then return nil end
@@ -1092,16 +882,7 @@ task.spawn(function()
 
                 local targetCoin = getNearestCoin(torso)
                 if targetCoin then
-                    local targetCFrame = targetCoin.CFrame
-                    if FarmSettings.Mode == "Underground" then
-                        targetCFrame = targetCFrame - Vector3.new(0, 6, 0)
-                    elseif FarmSettings.Mode == "Sit" then
-                        targetCFrame = targetCFrame + Vector3.new(0, 1, 0)
-                        hum.Sit = true
-                    else
-                        targetCFrame = targetCFrame - Vector3.new(0, 3, 0)
-                    end
-
+                    local targetCFrame = targetCoin.CFrame - Vector3.new(0, 3, 0)
                     local dist = (torso.Position - targetCFrame.Position).Magnitude
                     local tw = TweenService:Create(hrp, TweenInfo.new(dist / FarmSettings.Speed, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
                     FarmState.currentTween = tw
@@ -1121,8 +902,7 @@ task.spawn(function()
     end
 end)
 
-farmSec:CreateToggle("Auto Farm Coins", false, function(state) FarmSettings.Enabled = state end)
-farmSec:CreateSlider("Tween Speed", 10, 100, 25, function(val) FarmSettings.Speed = val end)
+farmSec:CreateToggle("Auto Farm Coins (Nearest)", false, function(state) FarmSettings.Enabled = state end)
 
 -- =====================================================================
 -- 4. COMBAT TAB
@@ -1143,7 +923,6 @@ UserInputService.InputBegan:Connect(function(inp, gpe)
     end
 end)
 
--- == Auto Throw ==
 local autoThrowEnabled = false
 local lastThrow        = 0
 local THROW_COOLDOWN   = 1.2
@@ -1227,7 +1006,6 @@ local function findTarget(myHRP)
     return best
 end
 
--- кэш RaycastParams для wall check — создаём один раз
 local wallCheckParams = RaycastParams.new()
 wallCheckParams.FilterType = Enum.RaycastFilterType.Exclude
 
@@ -1235,16 +1013,16 @@ local function isWallBetween(origin, targetPos, myChar)
     wallCheckParams.FilterDescendantsInstances = {myChar}
     local dir = targetPos - origin
     local result = Workspace:Raycast(origin, dir, wallCheckParams)
-    if not result then return false end  -- луч ничего не задел — путь чист
+    if not result then return end
     local hitChar = result.Instance:FindFirstAncestorOfClass("Model")
     if hitChar then
         for _, p in Players:GetPlayers() do
             if p ~= LocalPlayer and p.Character == hitChar then
-                return false  -- попали в персонажа — стены нет
+                return false
             end
         end
     end
-    return true  -- попали в геометрию — заблокировано
+    return true
 end
 
 RunService.RenderStepped:Connect(function()
@@ -1293,7 +1071,6 @@ local FIRE_RATE = 0.18
 RunService.Heartbeat:Connect(function()
     local t = tick()
 
-    -- Auto Shot с wall check
     if autoShotEnabled then
         local myChar = LocalPlayer.Character
         local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
@@ -1316,7 +1093,6 @@ RunService.Heartbeat:Connect(function()
         end
     end
 
-    -- Auto Throw
     if autoThrowEnabled and (t - lastThrow >= THROW_COOLDOWN) then
         local myChar = LocalPlayer.Character
         local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
@@ -1337,166 +1113,11 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- ─── Kill All + Auto Grab Gun ─────────────────────────────────────────────────
-local killGrabSec = combatTab:CreateSection("Kill & Grab")
-
-local killAllEnabled = false
-
-local function getKnifeHandle()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local knife = LocalPlayer.Backpack:FindFirstChild("Knife") or char:FindFirstChild("Knife")
-    if not knife then return end
-    if knife.Parent ~= char then
-        char.Humanoid:EquipTool(knife)
-        task.wait(0)
-    end
-    return knife:FindFirstChild("Handle") or knife:FindFirstChildWhichIsA("BasePart")
-end
-
-local function killAll()
-    local char = LocalPlayer.Character
-    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-    local hum  = char and char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not hum then return end
-
-    local handle = getKnifeHandle()
-    if not handle then print("[KillAll] нет ножа или Handle") return end
-
-    local originalCF = hrp.CFrame
-    local killed = 0
-
-    for _, p in Players:GetPlayers() do
-        if p == LocalPlayer then continue end
-        local pChar = p.Character
-        if not pChar then continue end
-        local victimHum = pChar:FindFirstChildOfClass("Humanoid")
-        if not victimHum or victimHum.Health <= 0 then continue end
-        local victimHRP = pChar:FindFirstChild("HumanoidRootPart")
-        if not victimHRP then continue end
-
-        hrp.CFrame = victimHRP.CFrame
-        task.wait()
-
-        for _, part in ipairs({
-            victimHRP,
-            pChar:FindFirstChild("UpperTorso") or pChar:FindFirstChild("Torso"),
-            pChar:FindFirstChild("Head"),
-        }) do
-            if part then
-                firetouchinterest(handle, part, 0)
-                firetouchinterest(handle, part, 1)
-            end
-        end
-        killed += 1
-    end
-
-    hrp.CFrame = originalCF
-    print(string.format("[KillAll] %d игроков", killed))
-end
-
-killGrabSec:CreateToggle("Kill All [H]", false, function(state)
-    killAllEnabled = state
-end)
-
-UserInputService.InputBegan:Connect(function(inp, gpe)
-    if gpe then return end
-    if inp.KeyCode == Enum.KeyCode.H and killAllEnabled then
-        killAll()
-    end
-end)
-
--- == Auto Grab Gun ==
-local autoGrab = true
-local autoGrabToggle
-
-autoGrabToggle = killGrabSec:CreateToggle("Auto Grab Gun [G]", true, function(state)
-    autoGrab = state
-end)
-
-UserInputService.InputBegan:Connect(function(inp, gpe)
-    if gpe then return end
-    if inp.KeyCode == Enum.KeyCode.G then
-        autoGrab = not autoGrab
-        autoGrabToggle:Set(nil, autoGrab)
-        print("AutoGrab:", autoGrab)
-    end
-end)
-
-local function alreadyHasGun()
-    local char = LocalPlayer.Character
-    return LocalPlayer.Backpack:FindFirstChild("Gun") or (char and char:FindFirstChild("Gun"))
-end
-
-local function getDropHandle(gunDrop)
-    if gunDrop:IsA("BasePart") then return gunDrop end
-    return gunDrop:FindFirstChild("Handle")
-        or gunDrop:FindFirstChildWhichIsA("BasePart")
-        or gunDrop.PrimaryPart
-end
-
-local function grabGun(gunDrop)
-    if not autoGrab then return end
-    if alreadyHasGun() then return end
-    local char = LocalPlayer.Character
-    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    local handle = getDropHandle(gunDrop)
-    if not handle then return end
-    firetouchinterest(hrp, handle, 0)
-    task.wait()
-    firetouchinterest(hrp, handle, 1)
-    print("[AutoGrab] подобрано")
-end
-
-task.delay(1.5, function()
-    local existing = Workspace:FindFirstChild("GunDrop", true)
-    if existing then grabGun(existing) end
-end)
-
-local function watchFolder(folder)
-    folder.ChildAdded:Connect(function(child)
-        if child.Name == "GunDrop" then task.wait(0.1); grabGun(child) end
-    end)
-end
-
-Workspace.ChildAdded:Connect(function(child)
-    if child.Name == "GunDrop" then task.wait(0.1); grabGun(child) end
-    if child:IsA("Model") or child:IsA("Folder") then watchFolder(child) end
-end)
-
-for _, obj in Workspace:GetChildren() do
-    if obj:IsA("Model") or obj:IsA("Folder") then watchFolder(obj) end
-end
-
-local function watchPlayerGun(p)
-    local function connectChar(char)
-        local hum = char:WaitForChild("Humanoid", 5)
-        if not hum then return end
-        hum.Died:Connect(function()
-            if not (p.Backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun")) then return end
-            task.delay(0.8, function()
-                local drop = Workspace:FindFirstChild("GunDrop", true)
-                if drop then grabGun(drop) end
-            end)
-        end)
-    end
-    if p.Character then task.spawn(connectChar, p.Character) end
-    p.CharacterAdded:Connect(connectChar)
-end
-
-for _, p in Players:GetPlayers() do
-    if p ~= LocalPlayer then task.spawn(watchPlayerGun, p) end
-end
-Players.PlayerAdded:Connect(function(p)
-    if p ~= LocalPlayer then watchPlayerGun(p) end
-end)
-
 -- =====================================================================
--- 5. TROLL TAB
+-- 5. TROLL TAB (Anti-Fling)
 -- =====================================================================
 
-local trollSec = trollTab:CreateSection("Troll & Physics")
+local trollSec = trollTab:CreateSection("Physics & Anti-Fling")
 
 trollSec:CreateToggle("Anti-Fling (Защита от флинга)", false, function(state)
     getgenv().AntiFlingEnabled = state
@@ -1527,85 +1148,4 @@ trollSec:CreateToggle("Anti-Fling (Защита от флинга)", false, func
     end)
 end)
 
-local targetFlingPlayer = "Все"
-
-local function getPlayersList()
-    local list = {"Все"}
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then table.insert(list, p.Name) end
-    end
-    return list
-end
-
-local flingDropdown = trollSec:CreateDropdown("Цель для Fling", getPlayersList(), "Все", function(selected)
-    targetFlingPlayer = selected
-end)
-
-Players.PlayerAdded:Connect(function()
-    pcall(function() flingDropdown:Refresh(getPlayersList()) end)
-end)
-Players.PlayerRemoving:Connect(function()
-    pcall(function() flingDropdown:Refresh(getPlayersList()) end)
-end)
-
-trollSec:CreateToggle("Запустить Fling (Краш/Раскид)", false, function(state)
-    getgenv().FlingActive = state
-    task.spawn(function()
-        while getgenv().FlingActive do
-            task.wait()
-            pcall(function()
-                local char = LocalPlayer.Character
-                if not char then return end
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                if not hrp or not hum then return end
-
-                local originalCFrame = hrp.CFrame
-                local target = nil
-
-                if targetFlingPlayer == "Все" then
-                    for _, p in ipairs(Players:GetPlayers()) do
-                        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                            target = p.Character; break
-                        end
-                    end
-                else
-                    local p = Players:FindFirstChild(targetFlingPlayer)
-                    if p and p.Character then target = p.Character end
-                end
-
-                if target and target:FindFirstChild("HumanoidRootPart") then
-                    local targetHRP = target.HumanoidRootPart
-                    hum.PlatformStand = true
-                    local startTime = tick()
-
-                    while getgenv().FlingActive and targetHRP and targetHRP.Parent and (tick() - startTime < 1.2) do
-                        task.wait()
-                        hrp.CFrame = targetHRP.CFrame
-                            * CFrame.new(math.random(-2, 2), math.random(0, 2), math.random(-2, 2))
-                            * CFrame.Angles(math.random(0, 360), math.random(0, 360), math.random(0, 360))
-                        hrp.Velocity = Vector3.new(99999, 99999, 99999)
-                        hrp.AssemblyLinearVelocity = Vector3.new(99999, 99999, 99999)
-                    end
-
-                    hum.PlatformStand = false
-                    hrp.Velocity = Vector3.new(0, 0, 0)
-                    hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                    hrp.CFrame = originalCFrame
-                end
-            end)
-        end
-
-        pcall(function()
-            local char = LocalPlayer.Character
-            if char then
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                if hum then hum.PlatformStand = false end
-                if hrp then hrp.Velocity = Vector3.new(0, 0, 0) end
-            end
-        end)
-    end)
-end)
-
-print("Hoverly loaded: AutoShot[F] + AutoThrow[T] + KillAll[H] + AutoGrabGun[G] + Fling + ESP + WallCheck")
+print("Hoverly loaded successfully!")
