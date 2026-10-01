@@ -1,6 +1,6 @@
 --[[
     Project: Hoverly | Murder Mystery 2
-    UI Library: VantaUI v4.5 (Full Features + Spider + Dynamic Skin Changer + Arrows + China Hat + Advanced Fling & Anti-Fling + AutoShot)
+    UI Library: VantaUI v4.5 (Full Features + Spider + Dynamic Skin Changer + Arrows + China Hat + Advanced Fling & Anti-Fling + AutoShot + KillAll + AutoGrabGun)
 ]]
 
 local Services = {
@@ -13,17 +13,17 @@ Services.LocalPlayer = Services.Players.LocalPlayer
 
 -- Настройки China Hat
 getgenv().ChinaHatSettings = {
-    enabled = true, 
-    hatColor = Color3.fromRGB(255, 105, 180), 
-    lightColor = Color3.fromRGB(255, 105, 180), 
-    lightBrightness = 0, 
-    lightRange = 12, 
-    scale = Vector3.new(1.7, 1.1, 1.7), 
+    enabled = true,
+    hatColor = Color3.fromRGB(255, 105, 180),
+    lightColor = Color3.fromRGB(255, 105, 180),
+    lightBrightness = 0,
+    lightRange = 12,
+    scale = Vector3.new(1.7, 1.1, 1.7),
 }
 
 local function CreateHat(Character)
     local Head = Character:FindFirstChild("Head")
-    if not Head then return end 
+    if not Head then return end
 
     local Cone = Instance.new("Part")
     Cone.Name = "RuzChinaHat"
@@ -33,12 +33,12 @@ local function CreateHat(Character)
     Cone.Transparency = 0.2
     Cone.Anchored = false
     Cone.CanCollide = false
-    Cone.Color = getgenv().ChinaHatSettings.hatColor 
+    Cone.Color = getgenv().ChinaHatSettings.hatColor
 
     local Mesh = Instance.new("SpecialMesh")
     Mesh.MeshType = Enum.MeshType.FileMesh
     Mesh.MeshId = "rbxassetid://1033714"
-    Mesh.Scale = getgenv().ChinaHatSettings.scale 
+    Mesh.Scale = getgenv().ChinaHatSettings.scale
     Mesh.Parent = Cone
 
     local Weld = Instance.new("Weld")
@@ -48,9 +48,9 @@ local function CreateHat(Character)
     Weld.Parent = Cone
 
     local Light = Instance.new("PointLight")
-    Light.Color = getgenv().ChinaHatSettings.lightColor 
-    Light.Brightness = getgenv().ChinaHatSettings.lightBrightness 
-    Light.Range = getgenv().ChinaHatSettings.lightRange 
+    Light.Color = getgenv().ChinaHatSettings.lightColor
+    Light.Brightness = getgenv().ChinaHatSettings.lightBrightness
+    Light.Range = getgenv().ChinaHatSettings.lightRange
     Light.Shadows = true
     Light.Parent = Cone
 
@@ -242,7 +242,7 @@ function VantaUI:Window(cfg)
         ZIndex = 5,
     }, panel)
     corner(topbar, 10)
-    
+
     new("Frame", {
         Size = UDim2.new(1, 0, 0, 10), Position = UDim2.new(0, 0, 1, -10),
         BackgroundColor3 = THEME.bg_alt, BorderSizePixel = 0, ZIndex = 6,
@@ -286,7 +286,7 @@ function VantaUI:Window(cfg)
         BackgroundColor3 = THEME.sidebar, BorderSizePixel = 0,
         ZIndex = 2,
     }, panel)
-    
+
     new("Frame", {
         Position = UDim2.new(1, -1, 0, 0),
         Size = UDim2.new(0, 1, 1, 0),
@@ -463,7 +463,7 @@ function VantaUI:Window(cfg)
                     Size = UDim2.new(1, 0, 0, 26), BackgroundTransparency = 1,
                     ZIndex = 5,
                 }, wrap)
-                
+
                 local lbl = new("TextLabel", {
                     Size = UDim2.new(1, -110, 0, 26), BackgroundTransparency = 1,
                     Font = FONT_MED, Text = name or "Dropdown", TextColor3 = THEME.text,
@@ -676,13 +676,16 @@ local combatTab = win:CreateTab("Combat")
 local trollTab  = win:CreateTab("Troll")
 local worldTab  = win:CreateTab("World")
 
--- 1. MAIN TAB (Spider, Movement, WalkSpeed, JumpPower, etc.)
+-- =====================================================================
+-- 1. MAIN TAB
+-- =====================================================================
+
 local mainSec = mainTab:CreateSection("Movement & Spin")
-local spinbotEnabled = false
-local spinbotSpeed = 50
+local spinbotEnabled    = false
+local spinbotSpeed      = 50
 local speedGlitchEnabled = true
-local speedGlitchSpeed = 50
-local spiderEnabled = false
+local speedGlitchSpeed  = 50
+local spiderEnabled     = false
 
 mainSec:CreateToggle("Spider (Wall/Ceiling Climb)", false, function(state) spiderEnabled = state end)
 mainSec:CreateToggle("Spinbot", false, function(state) spinbotEnabled = state end)
@@ -690,25 +693,19 @@ mainSec:CreateSlider("Spinbot Speed", 10, 200, 50, function(val) spinbotSpeed = 
 mainSec:CreateToggle("SpeedGlitch", true, function(state) speedGlitchEnabled = state end)
 mainSec:CreateSlider("SpeedGlitch Value", 10, 200, 50, function(val) speedGlitchSpeed = val end)
 
--- WalkSpeed
 local wsValue = 16
 mainSec:CreateToggle("Enable WalkSpeed", false, function(state)
     getgenv().CustomWS = state
     task.spawn(function()
         while getgenv().CustomWS do
             task.wait(0.1)
-            pcall(function()
-                LocalPlayer.Character.Humanoid.WalkSpeed = wsValue
-            end)
+            pcall(function() LocalPlayer.Character.Humanoid.WalkSpeed = wsValue end)
         end
-        pcall(function()
-            LocalPlayer.Character.Humanoid.WalkSpeed = 16
-        end)
+        pcall(function() LocalPlayer.Character.Humanoid.WalkSpeed = 16 end)
     end)
 end)
 mainSec:CreateSlider("WalkSpeed Value", 16, 200, 16, function(v) wsValue = v end)
 
--- JumpPower
 local jpValue = 50
 mainSec:CreateToggle("Enable JumpPower", false, function(state)
     getgenv().CustomJP = state
@@ -720,14 +717,11 @@ mainSec:CreateToggle("Enable JumpPower", false, function(state)
                 LocalPlayer.Character.Humanoid.JumpPower = jpValue
             end)
         end
-        pcall(function()
-            LocalPlayer.Character.Humanoid.JumpPower = 50
-        end)
+        pcall(function() LocalPlayer.Character.Humanoid.JumpPower = 50 end)
     end)
 end)
 mainSec:CreateSlider("JumpPower Value", 50, 300, 50, function(v) jpValue = v end)
 
--- Infinite Jump
 local infJumpConn
 mainSec:CreateToggle("Infinite Jump", false, function(state)
     if state then
@@ -741,16 +735,13 @@ mainSec:CreateToggle("Infinite Jump", false, function(state)
     end
 end)
 
--- Noclip
 local noclipConn
 mainSec:CreateToggle("Noclip", false, function(state)
     if state then
         noclipConn = Services.RunService.Stepped:Connect(function()
             pcall(function()
                 for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
+                    if part:IsA("BasePart") then part.CanCollide = false end
                 end
             end)
         end)
@@ -773,10 +764,8 @@ RunService.Stepped:Connect(function()
 
         local origin = hrp.Position
         local rayDirections = {
-            hrp.CFrame.LookVector,
-            -hrp.CFrame.LookVector,
-            hrp.CFrame.RightVector,
-            -hrp.CFrame.RightVector,
+            hrp.CFrame.LookVector, -hrp.CFrame.LookVector,
+            hrp.CFrame.RightVector, -hrp.CFrame.RightVector,
             Vector3.new(0, 1, 0),
         }
 
@@ -799,12 +788,9 @@ RunService.Stepped:Connect(function()
             local currentCF = hrp.CFrame
             local look = currentCF.LookVector
             local right = normal:Cross(look).Unit
-            if right.Magnitude ~= right.Magnitude then
-                right = currentCF.RightVector
-            end
+            if right.Magnitude ~= right.Magnitude then right = currentCF.RightVector end
             local up = normal
             look = up:Cross(right).Unit
-
             local targetCF = CFrame.fromMatrix(closestHit.Position + (normal * 2.2), look, up)
             hrp.CFrame = hrp.CFrame:Lerp(targetCF, 0.3)
             hrp.AssemblyLinearVelocity = Vector3.zero
@@ -829,8 +815,8 @@ end)
 
 RunService.Heartbeat:Connect(function()
     local char = LocalPlayer.Character
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local hum  = char and char:FindFirstChildOfClass("Humanoid")
+    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
     if speedGlitchEnabled and hum and hrp and not spiderEnabled then
         if hum.FloorMaterial == Enum.Material.Air then
             local moveDir = hum.MoveDirection
@@ -844,39 +830,40 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- 2. VISUALS TAB (ESP + Arrows + China Hat)
-local espSec = visualTab:CreateSection("Player ESP & Indicators")
-local espEnabled = false
+-- =====================================================================
+-- 2. VISUALS TAB
+-- =====================================================================
+
+local espSec      = visualTab:CreateSection("Player ESP & Indicators")
+local espEnabled  = false
 local arrowsEnabled = false
-local espData = {}
+local espData     = {}
 local arrowDrawings = {}
 
 local function getPlayerRole(player)
     local backpack = player:FindFirstChild("Backpack")
     local char = player.Character
     if not backpack and not char then return "Innocent" end
-    
+
     local function check(container)
         if not container then return false end
         for _, item in ipairs(container:GetChildren()) do
             if item.Name == "Knife" then return "Murderer" end
-            if item.Name == "Gun" then return "Sheriff" end
+            if item.Name == "Gun"   then return "Sheriff"  end
         end
         return false
     end
 
-    if check(backpack) or check(char) then
-        if check(backpack) then
-            for _, item in ipairs(backpack:GetChildren()) do
-                if item.Name == "Knife" then return "Murderer" end
-                if item.Name == "Gun" then return "Sheriff" end
-            end
+    if check(backpack) then
+        for _, item in ipairs(backpack:GetChildren()) do
+            if item.Name == "Knife" then return "Murderer" end
+            if item.Name == "Gun"   then return "Sheriff"  end
         end
-        if check(char) then
-            for _, item in ipairs(char:GetChildren()) do
-                if item.Name == "Knife" then return "Murderer" end
-                if item.Name == "Gun" then return "Sheriff" end
-            end
+    end
+    if char and check(char) then
+        for _, item in ipairs(char:GetChildren()) do
+            if item.Name == "Knife" then return "Murderer" end
+            if item.Name == "Gun"   then return "Sheriff"  end
         end
     end
     return "Innocent"
@@ -902,14 +889,14 @@ local function applyESP(player)
     hl.OutlineTransparency = 0.1
     hl.Enabled = espEnabled
     hl.Parent = CoreGui
-    
+
     local bb = Instance.new("BillboardGui")
     bb.Size = UDim2.new(0, 100, 0, 40)
     bb.StudsOffset = Vector3.new(0, 3, 0)
     bb.AlwaysOnTop = true
     bb.Enabled = espEnabled
     bb.Adornee = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
-    
+
     local lbl = Instance.new("TextLabel")
     lbl.Size = UDim2.new(1, 0, 1, 0)
     lbl.BackgroundTransparency = 1
@@ -935,25 +922,23 @@ end)
 
 local DistFromCenter = 80
 local TriangleHeight = 16
-local TriangleWidth = 16
+local TriangleWidth  = 16
 
 local function GetRelative(pos, char)
-    if not char or not char.PrimaryPart then return Vector2.new(0,0) end
+    if not char or not char.PrimaryPart then return Vector2.new(0, 0) end
     local rootP = char.PrimaryPart.Position
-    local camP = Workspace.CurrentCamera.CFrame.Position
+    local camP  = Workspace.CurrentCamera.CFrame.Position
     local relative = CFrame.new(Vector3.new(rootP.X, camP.Y, rootP.Z), camP):PointToObjectSpace(pos)
     return Vector2.new(relative.X, relative.Z)
 end
 
 local function RelativeToCenter(v)
-    return Workspace.CurrentCamera.ViewportSize/2 - v
+    return Workspace.CurrentCamera.ViewportSize / 2 - v
 end
 
 local function RotateVect(v, a)
     a = math.rad(a)
-    local x = v.x * math.cos(a) - v.y * math.sin(a)
-    local y = v.x * math.sin(a) + v.y * math.cos(a)
-    return Vector2.new(x, y)
+    return Vector2.new(v.x * math.cos(a) - v.y * math.sin(a), v.x * math.sin(a) + v.y * math.cos(a))
 end
 
 local function InitArrowForPlayer(player)
@@ -964,7 +949,6 @@ local function InitArrowForPlayer(player)
     arrow.Filled = true
     arrow.Thickness = 1
     arrow.Transparency = 1
-
     arrowDrawings[player] = arrow
 
     local conn
@@ -980,7 +964,7 @@ local function InitArrowForPlayer(player)
         end
 
         local char = player.Character
-        local hum = char:FindFirstChildOfClass("Humanoid")
+        local hum  = char:FindFirstChildOfClass("Humanoid")
         if hum and hum.Health > 0 then
             local _, vis = Workspace.CurrentCamera:WorldToViewportPoint(char.PrimaryPart.Position)
             if not vis then
@@ -988,9 +972,9 @@ local function InitArrowForPlayer(player)
                 local direction = rel.unit
                 local base = direction * DistFromCenter
                 local sideLength = TriangleWidth / 2
-                local baseL = base + RotateVect(direction, 90) * sideLength
+                local baseL = base + RotateVect(direction,  90) * sideLength
                 local baseR = base + RotateVect(direction, -90) * sideLength
-                local tip = direction * (DistFromCenter + TriangleHeight)
+                local tip   = direction * (DistFromCenter + TriangleHeight)
 
                 arrow.PointA = RelativeToCenter(baseL)
                 arrow.PointB = RelativeToCenter(baseR)
@@ -1004,7 +988,6 @@ local function InitArrowForPlayer(player)
                 else
                     arrow.Color = Color3.fromRGB(255, 255, 255)
                 end
-
                 arrow.Visible = true
             else
                 arrow.Visible = false
@@ -1022,14 +1005,12 @@ espSec:CreateToggle("Enable Offscreen Arrows", false, function(state)
             if not arrowDrawings[p] then InitArrowForPlayer(p) end
         end
     else
-        for _, arr in pairs(arrowDrawings) do
-            arr.Visible = false
-        end
+        for _, arr in pairs(arrowDrawings) do arr.Visible = false end
     end
 end)
 
 Players.PlayerAdded:Connect(function(p)
-    p.CharacterAdded:Connect(function() task.wait(1) applyESP(p) end)
+    p.CharacterAdded:Connect(function() task.wait(1); applyESP(p) end)
     p.CharacterRemoving:Connect(function() removeESP(p) end)
     if arrowsEnabled then InitArrowForPlayer(p) end
 end)
@@ -1037,7 +1018,7 @@ end)
 for _, p in ipairs(Players:GetPlayers()) do
     if p ~= LocalPlayer then
         if p.Character then applyESP(p) end
-        p.CharacterAdded:Connect(function() task.wait(1) applyESP(p) end)
+        p.CharacterAdded:Connect(function() task.wait(1); applyESP(p) end)
         p.CharacterRemoving:Connect(function() removeESP(p) end)
         InitArrowForPlayer(p)
     end
@@ -1051,16 +1032,11 @@ RunService.RenderStepped:Connect(function()
             if data and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                 data.highlight.Enabled = true
                 data.billboard.Enabled = true
-                
                 local role = getPlayerRole(player)
                 local col = Color3.fromRGB(0, 255, 0)
-                if role == "Murderer" then
-                    col = Color3.fromRGB(255, 0, 0)
-                elseif role == "Sheriff" then
-                    col = Color3.fromRGB(0, 120, 255)
-                end
-                
-                data.highlight.FillColor = col
+                if role == "Murderer" then col = Color3.fromRGB(255, 0, 0)
+                elseif role == "Sheriff" then col = Color3.fromRGB(0, 120, 255) end
+                data.highlight.FillColor    = col
                 data.highlight.OutlineColor = col
                 data.label.TextColor3 = col
                 data.label.Text = player.Name .. "\n[" .. role .. "]"
@@ -1074,36 +1050,31 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- China Hat настройки в визуалах
 local chinaSec = visualTab:CreateSection("China Hat (Визуал)")
 chinaSec:CreateToggle("China Hat (Конус на голову)", getgenv().ChinaHatSettings.enabled, function(state)
     getgenv().ChinaHatSettings.enabled = state
     if state then
         OnCharacterAdded(LocalPlayer.Character)
     else
-        pcall(function()
-            LocalPlayer.Character:FindFirstChild("RuzChinaHat"):Destroy()
-        end)
+        pcall(function() LocalPlayer.Character:FindFirstChild("RuzChinaHat"):Destroy() end)
     end
 end)
-
 chinaSec:CreateSlider("Hat Light Brightness", 0, 10, 0, function(val)
     getgenv().ChinaHatSettings.lightBrightness = val
-    pcall(function()
-        LocalPlayer.Character.RuzChinaHat.PointLight.Brightness = val
-    end)
+    pcall(function() LocalPlayer.Character.RuzChinaHat.PointLight.Brightness = val end)
 end)
 
+-- =====================================================================
 -- 3. SKINS TAB
+-- =====================================================================
+
 local skinsSec = skinsTab:CreateSection("Weapon Skin Changer")
 
 if not isfile("mm2data.lua") then
     local success, result = pcall(function()
         return game:HttpGet("https://raw.githubusercontent.com/Lutosys/opensrc/refs/heads/main/mm2meshes.lua")
     end)
-    if success and result then
-        writefile("mm2data.lua", result)
-    end
+    if success and result then writefile("mm2data.lua", result) end
 end
 
 local data = nil
@@ -1119,10 +1090,12 @@ local function findMeshAndTexture(node)
     if props then
         local meshId = props.MeshId or props.MeshID
         if meshId and meshId ~= "" then
-            local textureId = props.TextureId or props.TextureID or ""
-            local scale = props.Scale or Vector3.new(0.045,0.045,0.045)
-            local size = props.Size or Vector3.new(0.045,0.045,0.045)
-            return { meshid = meshId, textureid = textureId, scale = scale, size = size }
+            return {
+                meshid    = meshId,
+                textureid = props.TextureId or props.TextureID or "",
+                scale     = props.Scale or Vector3.new(0.045, 0.045, 0.045),
+                size      = props.Size  or Vector3.new(0.045, 0.045, 0.045),
+            }
         end
     end
     if node.Display and type(node.Display) == "table" then
@@ -1141,12 +1114,11 @@ local function getWeaponData(name)
     return findMeshAndTexture(weaponData)
 end
 
-local function applyWeaponMesh(refPart, weaponData, weaponName, weapontype)
+local function applyWeaponMesh(refPart, weaponData)
     if not weaponData or not weaponData.meshid then return end
-
     if refPart:IsA("MeshPart") then
-        local specialMesh = refPart:FindFirstChildOfClass("SpecialMesh")
-        if specialMesh then specialMesh:Destroy() end
+        local sm = refPart:FindFirstChildOfClass("SpecialMesh")
+        if sm then sm:Destroy() end
         refPart.Size = weaponData.size
         refPart.MeshId = weaponData.meshid
         refPart.TextureID = weaponData.textureid
@@ -1165,19 +1137,16 @@ local function applyWeaponMesh(refPart, weaponData, weaponName, weapontype)
 end
 
 pcall(function()
-    local InventoryModule = require(game.ReplicatedStorage.Modules.InventoryModule)
     local ProfileData = require(game.ReplicatedStorage.Modules.ProfileData)
     local Sync = require(game.ReplicatedStorage.Database.Sync)
-
     for name, itemData in pairs(Sync.Weapons) do
         itemData.SortWithinGroup = itemData.SortWithinGroup or 0
         itemData.SortGroup = itemData.SortGroup or nil
         itemData.Name = itemData.Name or itemData.ItemName or name
         itemData.Rarity = itemData.Rarity or "Common"
-
         if Sync.Rarities[itemData.Rarity] then
-            local weaponMeshInfo = getWeaponData(name)
-            if weaponMeshInfo and weaponMeshInfo.meshid and weaponMeshInfo.textureid then
+            local info = getWeaponData(name)
+            if info and info.meshid and info.textureid then
                 ProfileData.Weapons.Owned[name] = 1
             end
         end
@@ -1190,20 +1159,19 @@ task.spawn(function()
             local char = LocalPlayer.Character
             if not char then return end
             local ProfileData = require(game.ReplicatedStorage.Modules.ProfileData)
-            local equippedKnifeName = ProfileData.Weapons.Equipped.Knife
-            local equippedGunName = ProfileData.Weapons.Equipped.Gun
-
+            local equippedKnife = ProfileData.Weapons.Equipped.Knife
+            local equippedGun   = ProfileData.Weapons.Equipped.Gun
             for _, tool in pairs(char:GetChildren()) do
-                if tool and tool:IsA("Tool") then
+                if tool:IsA("Tool") then
                     local itemType = tool:GetAttribute("ItemType")
                     local Handle = tool:FindFirstChild("Handle")
                     if Handle then
-                        if itemType == "Knife" and equippedKnifeName then
-                            local knifedata = getWeaponData(equippedKnifeName)
-                            if knifedata then applyWeaponMesh(Handle, knifedata, equippedKnifeName, "Knife") end
-                        elseif itemType == "Gun" and equippedGunName then
-                            local gundata = getWeaponData(equippedGunName)
-                            if gundata then applyWeaponMesh(Handle, gundata, equippedGunName, "Gun") end
+                        if itemType == "Knife" and equippedKnife then
+                            local kd = getWeaponData(equippedKnife)
+                            if kd then applyWeaponMesh(Handle, kd) end
+                        elseif itemType == "Gun" and equippedGun then
+                            local gd = getWeaponData(equippedGun)
+                            if gd then applyWeaponMesh(Handle, gd) end
                         end
                     end
                 end
@@ -1214,9 +1182,7 @@ end)
 
 local weaponNames = {"Default Knife", "Default Gun"}
 if data then
-    for name, _ in pairs(data) do
-        table.insert(weaponNames, name)
-    end
+    for name, _ in pairs(data) do table.insert(weaponNames, name) end
 end
 
 skinsSec:CreateDropdown("Select Weapon Skin", weaponNames, weaponNames[1], function(selected)
@@ -1233,10 +1199,13 @@ skinsSec:CreateDropdown("Select Weapon Skin", weaponNames, weaponNames[1], funct
     end)
 end)
 
+-- =====================================================================
 -- 4. AUTO FARM TAB
+-- =====================================================================
+
 local farmSec = farmTab:CreateSection("Candy/Coin Farm")
 local FarmSettings = { Enabled = false, Speed = 25, Mode = "Nearest" }
-local FarmState = { ignoredCoins = {}, currentTween = nil }
+local FarmState    = { ignoredCoins = {}, currentTween = nil }
 
 farmSec:CreateDropdown("Farm Mode", {"Nearest", "Underground", "Sit"}, "Nearest", function(selected)
     FarmSettings.Mode = selected
@@ -1253,15 +1222,11 @@ local function getNearestCoin(torso)
         if obj.Name == "CoinContainer" then container = obj; break end
     end
     if not container then return nil end
-
     local nearestCoin, minDist = nil, math.huge
     for _, coin in pairs(container:GetChildren()) do
         if coin.Name == "Coin_Server" and coin:IsA("BasePart") and not FarmState.ignoredCoins[coin] then
             local dist = (torso.Position - coin.Position).Magnitude
-            if dist < minDist then
-                minDist = dist
-                nearestCoin = coin
-            end
+            if dist < minDist then minDist = dist; nearestCoin = coin end
         end
     end
     return nearestCoin
@@ -1271,11 +1236,11 @@ task.spawn(function()
     while task.wait() do
         if FarmSettings.Enabled then
             pcall(function()
-                local char = LocalPlayer.Character
+                local char  = LocalPlayer.Character
                 if not char then return end
-                local hrp = char:FindFirstChild("HumanoidRootPart")
+                local hrp   = char:FindFirstChild("HumanoidRootPart")
                 local torso = getTorso(char)
-                local hum = char:FindFirstChildOfClass("Humanoid")
+                local hum   = char:FindFirstChildOfClass("Humanoid")
                 if not hrp or not torso or not hum then return end
 
                 local targetCoin = getNearestCoin(torso)
@@ -1285,17 +1250,15 @@ task.spawn(function()
                         targetCFrame = targetCFrame - Vector3.new(0, 6, 0)
                     elseif FarmSettings.Mode == "Sit" then
                         targetCFrame = targetCFrame + Vector3.new(0, 1, 0)
-                        if hum then hum.Sit = true end
+                        hum.Sit = true
                     else
                         targetCFrame = targetCFrame - Vector3.new(0, 3, 0)
                     end
 
                     local dist = (torso.Position - targetCFrame.Position).Magnitude
-                    local tweenInfo = TweenInfo.new(dist / FarmSettings.Speed, Enum.EasingStyle.Linear)
-                    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
-                    FarmState.currentTween = tween
-                    tween:Play()
-                    tween.Completed:Wait()
+                    local tw = TweenService:Create(hrp, TweenInfo.new(dist / FarmSettings.Speed, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
+                    FarmState.currentTween = tw
+                    tw:Play(); tw.Completed:Wait()
 
                     if firetouchinterest then
                         firetouchinterest(torso, targetCoin, 0)
@@ -1314,25 +1277,24 @@ end)
 farmSec:CreateToggle("Auto Farm Coins", false, function(state) FarmSettings.Enabled = state end)
 farmSec:CreateSlider("Tween Speed", 10, 100, 25, function(val) FarmSettings.Speed = val end)
 
--- 5. COMBAT TAB (Интегрирован твой авто-шот + кнопка F)
+-- =====================================================================
+-- 5. COMBAT TAB
+-- =====================================================================
+
 local combatSec = combatTab:CreateSection("Combat & Status")
 
--- Интеграция Auto Shot
 local autoShotEnabled = true
-
 combatSec:CreateToggle("Auto Shot (Вкл/Выкл [F])", true, function(state)
     autoShotEnabled = state
 end)
 
--- Создаем невидимую часть для предсказания (Prediction)
 local predPart = Instance.new("Part")
-predPart.Anchored    = true
-predPart.CanCollide  = false
+predPart.Anchored     = true
+predPart.CanCollide   = false
 predPart.Transparency = 1
-predPart.Size        = Vector3.new(0.1, 0.1, 0.1)
-predPart.Parent      = workspace
+predPart.Size         = Vector3.new(0.1, 0.1, 0.1)
+predPart.Parent       = workspace
 
--- Обработка нажатия клавиши F для переключения Auto Shot
 UserInputService.InputBegan:Connect(function(inp, gpe)
     if gpe then return end
     if inp.KeyCode == Enum.KeyCode.F then
@@ -1341,20 +1303,18 @@ UserInputService.InputBegan:Connect(function(inp, gpe)
     end
 end)
 
--- Логика выбора цели
 local function findTarget(myHRP)
-    local myChar = LocalPlayer.Character
+    local myChar  = LocalPlayer.Character
     local myKnife = LocalPlayer.Backpack:FindFirstChild("Knife") or (myChar and myChar:FindFirstChild("Knife"))
     local myGun   = LocalPlayer.Backpack:FindFirstChild("Gun")   or (myChar and myChar:FindFirstChild("Gun"))
-
     local best, bestDist = nil, math.huge
 
     for _, p in Players:GetPlayers() do
         if p == LocalPlayer then continue end
         local char = p.Character
         if not char then continue end
-        local hum  = char:FindFirstChildOfClass("Humanoid")
-        local hrp  = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local hrp = char:FindFirstChild("HumanoidRootPart")
         if not hum or not hrp or hum.Health <= 0 then continue end
 
         local theirKnife = p.Backpack:FindFirstChild("Knife") or char:FindFirstChild("Knife")
@@ -1373,10 +1333,7 @@ local function findTarget(myHRP)
         end
 
         if not valid then continue end
-        if dist < bestDist then
-            bestDist = dist
-            best = char
-        end
+        if dist < bestDist then bestDist = dist; best = char end
     end
 
     if not best then
@@ -1388,17 +1345,12 @@ local function findTarget(myHRP)
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if not hum or not hrp or hum.Health <= 0 then continue end
             local dist = (hrp.Position - myHRP.Position).Magnitude
-            if dist < bestDist then
-                bestDist = dist
-                best = char
-            end
+            if dist < bestDist then bestDist = dist; best = char end
         end
     end
-
     return best
 end
 
--- Обновление позиции предсказания каждый кадр
 RunService.RenderStepped:Connect(function()
     if not autoShotEnabled then return end
     local myChar = LocalPlayer.Character
@@ -1408,22 +1360,18 @@ RunService.RenderStepped:Connect(function()
     local target = findTarget(myHRP)
     if not target then return end
 
-    local torso = target:FindFirstChild("UpperTorso")
-               or target:FindFirstChild("Torso")
-               or target:FindFirstChild("HumanoidRootPart")
+    local torso = target:FindFirstChild("UpperTorso") or target:FindFirstChild("Torso") or target:FindFirstChild("HumanoidRootPart")
     local hum   = target:FindFirstChildOfClass("Humanoid")
     if not torso then return end
 
     local pos  = torso.Position
     local dist = (pos - myHRP.Position).Magnitude
-
     local travelTime = dist / 250
 
     local ok, ping = pcall(function() return LocalPlayer:GetNetworkPing() end)
     if ok and ping then travelTime = travelTime + ping * 0.5 end
 
     local vel = torso.AssemblyLinearVelocity
-
     if hum then
         local state = hum:GetState()
         if state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Jumping then
@@ -1438,8 +1386,7 @@ local function equipGun()
     local char = LocalPlayer.Character
     if not char then return end
     local gun = LocalPlayer.Backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun")
-    if not gun then return end
-    if gun.Parent == char then return end
+    if not gun or gun.Parent == char then return end
     char.Humanoid:EquipTool(gun)
     task.wait(0)
 end
@@ -1449,7 +1396,6 @@ local FIRE_RATE = 0.18
 
 RunService.Heartbeat:Connect(function()
     if not autoShotEnabled then return end
-
     local myChar = LocalPlayer.Character
     local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
     if not myHRP then return end
@@ -1461,7 +1407,6 @@ RunService.Heartbeat:Connect(function()
 
     local gun = myChar:FindFirstChild("Gun")
     if not gun then return end
-
     local shootRemote = gun:FindFirstChild("Shoot")
     if not shootRemote then return end
 
@@ -1469,23 +1414,160 @@ RunService.Heartbeat:Connect(function()
     local myPos     = myHRP.Position + Vector3.new(0, 1, 0)
 
     pcall(function()
-        shootRemote:FireServer(
-            CFrame.new(myPos, targetPos),
-            CFrame.new(targetPos)
-        )
+        shootRemote:FireServer(CFrame.new(myPos, targetPos), CFrame.new(targetPos))
     end)
-
     lastShot = t
 end)
 
+-- ─── Kill All + Auto Grab Gun ─────────────────────────────────────────────────
+local killGrabSec = combatTab:CreateSection("Kill & Grab")
 
--- 6. TROLL TAB (Anti-Fling + Advanced Fling с обновляемым списком игроков)
+-- == Kill All ==
+local killAllEnabled = false
+
+local function getKnifeHandle()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local knife = LocalPlayer.Backpack:FindFirstChild("Knife") or char:FindFirstChild("Knife")
+    if not knife then return end
+    if knife.Parent ~= char then
+        char.Humanoid:EquipTool(knife)
+        task.wait(0)
+    end
+    return knife:FindFirstChild("Handle") or knife:FindFirstChildWhichIsA("BasePart")
+end
+
+local function killAll()
+    local handle = getKnifeHandle()
+    if not handle then print("[KillAll] нет ножа или Handle") return end
+    local killed = 0
+    for _, p in Players:GetPlayers() do
+        if p == LocalPlayer then continue end
+        local pChar = p.Character
+        if not pChar then continue end
+        local hum = pChar:FindFirstChildOfClass("Humanoid")
+        if not hum or hum.Health <= 0 then continue end
+        for _, part in ipairs({
+            pChar:FindFirstChild("HumanoidRootPart"),
+            pChar:FindFirstChild("UpperTorso") or pChar:FindFirstChild("Torso"),
+            pChar:FindFirstChild("Head"),
+        }) do
+            if part then
+                firetouchinterest(handle, part, 0)
+                firetouchinterest(handle, part, 1)
+            end
+        end
+        killed += 1
+    end
+    print(string.format("[KillAll] %d игроков", killed))
+end
+
+killGrabSec:CreateToggle("Kill All [H]", false, function(state)
+    killAllEnabled = state
+end)
+
+UserInputService.InputBegan:Connect(function(inp, gpe)
+    if gpe then return end
+    if inp.KeyCode == Enum.KeyCode.H and killAllEnabled then
+        killAll()
+    end
+end)
+
+-- == Auto Grab Gun ==
+local autoGrab = true
+local autoGrabToggle  -- held so G-key can sync the visual
+
+autoGrabToggle = killGrabSec:CreateToggle("Auto Grab Gun [G]", true, function(state)
+    autoGrab = state
+end)
+
+UserInputService.InputBegan:Connect(function(inp, gpe)
+    if gpe then return end
+    if inp.KeyCode == Enum.KeyCode.G then
+        autoGrab = not autoGrab
+        autoGrabToggle:Set(autoGrab)  -- Set(_, v): _ = self via colon, v = autoGrab
+        print("AutoGrab:", autoGrab)
+    end
+end)
+
+local function alreadyHasGun()
+    local char = LocalPlayer.Character
+    return LocalPlayer.Backpack:FindFirstChild("Gun") or (char and char:FindFirstChild("Gun"))
+end
+
+local function getDropHandle(gunDrop)
+    if gunDrop:IsA("BasePart") then return gunDrop end
+    return gunDrop:FindFirstChild("Handle")
+        or gunDrop:FindFirstChildWhichIsA("BasePart")
+        or gunDrop.PrimaryPart
+end
+
+local function grabGun(gunDrop)
+    if not autoGrab then return end
+    if alreadyHasGun() then return end
+    local char = LocalPlayer.Character
+    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    local handle = getDropHandle(gunDrop)
+    if not handle then return end
+    firetouchinterest(hrp, handle, 0)
+    task.wait()
+    firetouchinterest(hrp, handle, 1)
+    print("[AutoGrab] подобрано")
+end
+
+task.delay(1.5, function()
+    local existing = Workspace:FindFirstChild("GunDrop", true)
+    if existing then grabGun(existing) end
+end)
+
+local function watchFolder(folder)
+    folder.ChildAdded:Connect(function(child)
+        if child.Name == "GunDrop" then task.wait(0.1); grabGun(child) end
+    end)
+end
+
+Workspace.ChildAdded:Connect(function(child)
+    if child.Name == "GunDrop" then task.wait(0.1); grabGun(child) end
+    if child:IsA("Model") or child:IsA("Folder") then watchFolder(child) end
+end)
+
+for _, obj in Workspace:GetChildren() do
+    if obj:IsA("Model") or obj:IsA("Folder") then watchFolder(obj) end
+end
+
+local function watchPlayerGun(p)
+    local function connectChar(char)
+        local hum = char:WaitForChild("Humanoid", 5)
+        if not hum then return end
+        hum.Died:Connect(function()
+            if not (p.Backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun")) then return end
+            task.delay(0.8, function()
+                local drop = Workspace:FindFirstChild("GunDrop", true)
+                if drop then grabGun(drop) end
+            end)
+        end)
+    end
+    if p.Character then task.spawn(connectChar, p.Character) end
+    p.CharacterAdded:Connect(connectChar)
+end
+
+for _, p in Players:GetPlayers() do
+    if p ~= LocalPlayer then task.spawn(watchPlayerGun, p) end
+end
+Players.PlayerAdded:Connect(function(p)
+    if p ~= LocalPlayer then watchPlayerGun(p) end
+end)
+
+-- =====================================================================
+-- 6. TROLL TAB
+-- =====================================================================
+
 local trollSec = trollTab:CreateSection("Troll & Physics")
 
 trollSec:CreateToggle("Anti-Fling (Защита от флинга)", false, function(state)
     getgenv().AntiFlingEnabled = state
     pcall(function()
-        local RunService = game:GetService("RunService")
         if state then
             if not getgenv().AntiFlingConnection then
                 getgenv().AntiFlingConnection = RunService.Stepped:Connect(function()
@@ -1513,14 +1595,11 @@ trollSec:CreateToggle("Anti-Fling (Защита от флинга)", false, func
 end)
 
 local targetFlingPlayer = "Все"
-local playerListTroll = {"Все"}
 
 local function getPlayersList()
     local list = {"Все"}
     for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            table.insert(list, p.Name)
-        end
+        if p ~= LocalPlayer then table.insert(list, p.Name) end
     end
     return list
 end
@@ -1530,20 +1609,14 @@ local flingDropdown = trollSec:CreateDropdown("Цель для Fling", getPlayer
 end)
 
 Players.PlayerAdded:Connect(function()
-    pcall(function()
-        flingDropdown:Refresh(getPlayersList())
-    end)
+    pcall(function() flingDropdown:Refresh(getPlayersList()) end)
 end)
-
 Players.PlayerRemoving:Connect(function()
-    pcall(function()
-        flingDropdown:Refresh(getPlayersList())
-    end)
+    pcall(function() flingDropdown:Refresh(getPlayersList()) end)
 end)
 
 trollSec:CreateToggle("Запустить Fling (Краш/Раскид)", false, function(state)
     getgenv().FlingActive = state
-    
     task.spawn(function()
         while getgenv().FlingActive do
             task.wait()
@@ -1553,35 +1626,35 @@ trollSec:CreateToggle("Запустить Fling (Краш/Раскид)", false,
                 local hrp = char:FindFirstChild("HumanoidRootPart")
                 local hum = char:FindFirstChildOfClass("Humanoid")
                 if not hrp or not hum then return end
-                
+
                 local originalCFrame = hrp.CFrame
-                
+
                 local target = nil
                 if targetFlingPlayer == "Все" then
                     for _, p in ipairs(Players:GetPlayers()) do
                         if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                            target = p.Character
-                            break
+                            target = p.Character; break
                         end
                     end
                 else
                     local p = Players:FindFirstChild(targetFlingPlayer)
                     if p and p.Character then target = p.Character end
                 end
-                
+
                 if target and target:FindFirstChild("HumanoidRootPart") then
                     local targetHRP = target.HumanoidRootPart
-                    
                     hum.PlatformStand = true
                     local startTime = tick()
-                    
+
                     while getgenv().FlingActive and targetHRP and targetHRP.Parent and (tick() - startTime < 1.2) do
                         task.wait()
-                        hrp.CFrame = targetHRP.CFrame * CFrame.new(math.random(-2,2), math.random(0,2), math.random(-2,2)) * CFrame.Angles(math.random(0,360), math.random(0,360), math.random(0,360))
+                        hrp.CFrame = targetHRP.CFrame
+                            * CFrame.new(math.random(-2, 2), math.random(0, 2), math.random(-2, 2))
+                            * CFrame.Angles(math.random(0, 360), math.random(0, 360), math.random(0, 360))
                         hrp.Velocity = Vector3.new(99999, 99999, 99999)
                         hrp.AssemblyLinearVelocity = Vector3.new(99999, 99999, 99999)
                     end
-                    
+
                     hum.PlatformStand = false
                     hrp.Velocity = Vector3.new(0, 0, 0)
                     hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
@@ -1589,17 +1662,17 @@ trollSec:CreateToggle("Запустить Fling (Краш/Раскид)", false,
                 end
             end)
         end
-        
+
         pcall(function()
             local char = LocalPlayer.Character
             if char then
                 local hum = char:FindFirstChildOfClass("Humanoid")
                 local hrp = char:FindFirstChild("HumanoidRootPart")
                 if hum then hum.PlatformStand = false end
-                if hrp then hrp.Velocity = Vector3.new(0,0,0) end
+                if hrp then hrp.Velocity = Vector3.new(0, 0, 0) end
             end
         end)
     end)
 end)
 
-print("Hoverly Script successfully loaded with Integrated AutoShot & Dynamic Fling Player Selector!")
+print("Hoverly loaded: AutoShot + KillAll [H] + AutoGrabGun [G] + Dynamic Fling Selector")
