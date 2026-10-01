@@ -1227,6 +1227,26 @@ local function findTarget(myHRP)
     return best
 end
 
+-- кэш RaycastParams для wall check — создаём один раз
+local wallCheckParams = RaycastParams.new()
+wallCheckParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function isWallBetween(origin, targetPos, myChar)
+    wallCheckParams.FilterDescendantsInstances = {myChar}
+    local dir = targetPos - origin
+    local result = Workspace:Raycast(origin, dir, wallCheckParams)
+    if not result then return false end  -- луч ничего не задел — путь чист
+    local hitChar = result.Instance:FindFirstAncestorOfClass("Model")
+    if hitChar then
+        for _, p in Players:GetPlayers() do
+            if p ~= LocalPlayer and p.Character == hitChar then
+                return false  -- попали в персонажа — стены нет
+            end
+        end
+    end
+    return true  -- попали в геометрию — заблокировано
+end
+
 RunService.RenderStepped:Connect(function()
     if not autoShotEnabled and not autoThrowEnabled then return end
     local myChar = LocalPlayer.Character
@@ -1273,7 +1293,7 @@ local FIRE_RATE = 0.18
 RunService.Heartbeat:Connect(function()
     local t = tick()
 
-    -- Auto Shot
+    -- Auto Shot с wall check
     if autoShotEnabled then
         local myChar = LocalPlayer.Character
         local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
@@ -1285,10 +1305,12 @@ RunService.Heartbeat:Connect(function()
                 if shootRemote then
                     local targetPos = predPart.CFrame.Position
                     local myPos     = myHRP.Position + Vector3.new(0, 1, 0)
-                    pcall(function()
-                        shootRemote:FireServer(CFrame.new(myPos, targetPos), CFrame.new(targetPos))
-                    end)
-                    lastShot = t
+                    if not isWallBetween(myPos, targetPos, myChar) then
+                        pcall(function()
+                            shootRemote:FireServer(CFrame.new(myPos, targetPos), CFrame.new(targetPos))
+                        end)
+                        lastShot = t
+                    end
                 end
             end
         end
@@ -1353,7 +1375,7 @@ local function killAll()
         local victimHRP = pChar:FindFirstChild("HumanoidRootPart")
         if not victimHRP then continue end
 
-        hrp.CFrame = victimHRP.CFrame  -- телепорт к жертве — проходит серверный distance-check
+        hrp.CFrame = victimHRP.CFrame
         task.wait()
 
         for _, part in ipairs({
@@ -1586,4 +1608,4 @@ trollSec:CreateToggle("Запустить Fling (Краш/Раскид)", false,
     end)
 end)
 
-print("Hoverly loaded: AutoShot[F] + AutoThrow[T] + KillAll[H] + AutoGrabGun[G] + Fling + ESP")
+print("Hoverly loaded: AutoShot[F] + AutoThrow[T] + KillAll[H] + AutoGrabGun[G] + Fling + ESP + WallCheck")
