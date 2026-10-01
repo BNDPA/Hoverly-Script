@@ -1,6 +1,6 @@
 --[[
     Project: Hoverly | Murder Mystery 2
-    UI Library: VantaUI v4.5 (Full Features + Spider + Dynamic Skin Changer + Arrows + China Hat + Advanced Fling & Anti-Fling + AutoShot + KillAll + AutoGrabGun)
+    UI Library: VantaUI v4.5 (Full Features + Spider + Arrows + China Hat + Advanced Fling & Anti-Fling + AutoShot + KillAll + AutoGrabGun + AutoThrow)
 ]]
 
 local Services = {
@@ -11,7 +11,6 @@ local Services = {
 }
 Services.LocalPlayer = Services.Players.LocalPlayer
 
--- Настройки China Hat
 getgenv().ChinaHatSettings = {
     enabled = true,
     hatColor = Color3.fromRGB(255, 105, 180),
@@ -464,7 +463,7 @@ function VantaUI:Window(cfg)
                     ZIndex = 5,
                 }, wrap)
 
-                local lbl = new("TextLabel", {
+                new("TextLabel", {
                     Size = UDim2.new(1, -110, 0, 26), BackgroundTransparency = 1,
                     Font = FONT_MED, Text = name or "Dropdown", TextColor3 = THEME.text,
                     TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
@@ -500,15 +499,12 @@ function VantaUI:Window(cfg)
 
                 local function closeList()
                     if not opened then return end
-                    opened = false
-                    listFrame.Visible = false
+                    opened = false; listFrame.Visible = false
                 end
 
                 local function openList()
                     if opened then return end
-                    opened = true
-                    updateDropdownPos()
-                    listFrame.Visible = true
+                    opened = true; updateDropdownPos(); listFrame.Visible = true
                 end
 
                 mainBtn.MouseButton1Click:Connect(function()
@@ -520,7 +516,6 @@ function VantaUI:Window(cfg)
                     for _, child in ipairs(listFrame:GetChildren()) do
                         if child:IsA("TextButton") then child:Destroy() end
                     end
-
                     for _, opt in ipairs(options) do
                         local optBtn = new("TextButton", {
                             Size = UDim2.new(1, 0, 0, 20),
@@ -530,7 +525,6 @@ function VantaUI:Window(cfg)
                             TextSize = 11, AutoButtonColor = false, ZIndex = 51,
                         }, listFrame)
                         corner(optBtn, 4)
-
                         optBtn.MouseButton1Click:Connect(function()
                             selected = opt
                             mainBtn.Text = tostring(selected) .. " ▾"
@@ -543,15 +537,9 @@ function VantaUI:Window(cfg)
                 refreshOptions()
 
                 return {
-                    Set = function(_, v)
-                        selected = v
-                        mainBtn.Text = tostring(selected) .. " ▾"
-                        refreshOptions()
-                    end,
+                    Set = function(_, v) selected = v; mainBtn.Text = tostring(selected) .. " ▾"; refreshOptions() end,
                     Get = function() return selected end,
-                    Refresh = function(_, newOptions)
-                        refreshOptions(newOptions)
-                    end
+                    Refresh = function(_, newOptions) refreshOptions(newOptions) end,
                 }
             end
 
@@ -659,7 +647,7 @@ function VantaUI:Window(cfg)
 end
 
 -- =====================================================================
--- ИНИЦИАЛИЗАЦИЯ ИНТЕРФЕЙСА HOVERLY | MM2
+-- ИНИЦИАЛИЗАЦИЯ
 -- =====================================================================
 
 local win = VantaUI:Window({
@@ -670,7 +658,6 @@ local win = VantaUI:Window({
 
 local mainTab   = win:CreateTab("Main")
 local visualTab = win:CreateTab("Visuals")
-local skinsTab  = win:CreateTab("Skins")
 local farmTab   = win:CreateTab("Auto Farm")
 local combatTab = win:CreateTab("Combat")
 local trollTab  = win:CreateTab("Troll")
@@ -681,11 +668,11 @@ local worldTab  = win:CreateTab("World")
 -- =====================================================================
 
 local mainSec = mainTab:CreateSection("Movement & Spin")
-local spinbotEnabled    = false
-local spinbotSpeed      = 50
+local spinbotEnabled     = false
+local spinbotSpeed       = 50
 local speedGlitchEnabled = true
-local speedGlitchSpeed  = 50
-local spiderEnabled     = false
+local speedGlitchSpeed   = 50
+local spiderEnabled      = false
 
 mainSec:CreateToggle("Spider (Wall/Ceiling Climb)", false, function(state) spiderEnabled = state end)
 mainSec:CreateToggle("Spinbot", false, function(state) spinbotEnabled = state end)
@@ -776,8 +763,7 @@ RunService.Stepped:Connect(function()
             local result = Workspace:Raycast(origin, dir * minDist, rayParams)
             if result and result.Instance and result.Instance.CanCollide then
                 if math.abs(result.Normal.Y) < 0.7 then
-                    closestHit = result
-                    break
+                    closestHit = result; break
                 end
             end
         end
@@ -834,10 +820,10 @@ end)
 -- 2. VISUALS TAB
 -- =====================================================================
 
-local espSec      = visualTab:CreateSection("Player ESP & Indicators")
-local espEnabled  = false
+local espSec       = visualTab:CreateSection("Player ESP & Indicators")
+local espEnabled   = false
 local arrowsEnabled = false
-local espData     = {}
+local espData      = {}
 local arrowDrawings = {}
 
 local function getPlayerRole(player)
@@ -981,13 +967,9 @@ local function InitArrowForPlayer(player)
                 arrow.PointC = RelativeToCenter(tip)
 
                 local role = getPlayerRole(player)
-                if role == "Murderer" then
-                    arrow.Color = Color3.fromRGB(255, 0, 0)
-                elseif role == "Sheriff" then
-                    arrow.Color = Color3.fromRGB(0, 120, 255)
-                else
-                    arrow.Color = Color3.fromRGB(255, 255, 255)
-                end
+                if role == "Murderer" then arrow.Color = Color3.fromRGB(255, 0, 0)
+                elseif role == "Sheriff" then arrow.Color = Color3.fromRGB(0, 120, 255)
+                else arrow.Color = Color3.fromRGB(255, 255, 255) end
                 arrow.Visible = true
             else
                 arrow.Visible = false
@@ -1065,142 +1047,7 @@ chinaSec:CreateSlider("Hat Light Brightness", 0, 10, 0, function(val)
 end)
 
 -- =====================================================================
--- 3. SKINS TAB
--- =====================================================================
-
-local skinsSec = skinsTab:CreateSection("Weapon Skin Changer")
-
-if not isfile("mm2data.lua") then
-    local success, result = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/Lutosys/opensrc/refs/heads/main/mm2meshes.lua")
-    end)
-    if success and result then writefile("mm2data.lua", result) end
-end
-
-local data = nil
-pcall(function()
-    if isfile("mm2data.lua") then
-        data = loadfile("mm2data.lua")() or nil
-    end
-end)
-
-local function findMeshAndTexture(node)
-    if not node or type(node) ~= "table" then return nil end
-    local props = node.Props
-    if props then
-        local meshId = props.MeshId or props.MeshID
-        if meshId and meshId ~= "" then
-            return {
-                meshid    = meshId,
-                textureid = props.TextureId or props.TextureID or "",
-                scale     = props.Scale or Vector3.new(0.045, 0.045, 0.045),
-                size      = props.Size  or Vector3.new(0.045, 0.045, 0.045),
-            }
-        end
-    end
-    if node.Display and type(node.Display) == "table" then
-        for _, child in ipairs(node.Display) do
-            local res = findMeshAndTexture(child)
-            if res then return res end
-        end
-    end
-    return nil
-end
-
-local function getWeaponData(name)
-    if not data then return nil end
-    local weaponData = data[name]
-    if not weaponData then return nil end
-    return findMeshAndTexture(weaponData)
-end
-
-local function applyWeaponMesh(refPart, weaponData)
-    if not weaponData or not weaponData.meshid then return end
-    if refPart:IsA("MeshPart") then
-        local sm = refPart:FindFirstChildOfClass("SpecialMesh")
-        if sm then sm:Destroy() end
-        refPart.Size = weaponData.size
-        refPart.MeshId = weaponData.meshid
-        refPart.TextureID = weaponData.textureid
-    else
-        local mesh = refPart:FindFirstChildOfClass("SpecialMesh")
-        if not mesh then
-            mesh = Instance.new("SpecialMesh")
-            mesh.Name = "Mesh"
-            mesh.Parent = refPart
-        end
-        refPart.Size = weaponData.size
-        mesh.MeshId = weaponData.meshid
-        mesh.TextureId = weaponData.textureid
-        mesh.Scale = weaponData.scale
-    end
-end
-
-pcall(function()
-    local ProfileData = require(game.ReplicatedStorage.Modules.ProfileData)
-    local Sync = require(game.ReplicatedStorage.Database.Sync)
-    for name, itemData in pairs(Sync.Weapons) do
-        itemData.SortWithinGroup = itemData.SortWithinGroup or 0
-        itemData.SortGroup = itemData.SortGroup or nil
-        itemData.Name = itemData.Name or itemData.ItemName or name
-        itemData.Rarity = itemData.Rarity or "Common"
-        if Sync.Rarities[itemData.Rarity] then
-            local info = getWeaponData(name)
-            if info and info.meshid and info.textureid then
-                ProfileData.Weapons.Owned[name] = 1
-            end
-        end
-    end
-end)
-
-task.spawn(function()
-    while task.wait(0.2) do
-        pcall(function()
-            local char = LocalPlayer.Character
-            if not char then return end
-            local ProfileData = require(game.ReplicatedStorage.Modules.ProfileData)
-            local equippedKnife = ProfileData.Weapons.Equipped.Knife
-            local equippedGun   = ProfileData.Weapons.Equipped.Gun
-            for _, tool in pairs(char:GetChildren()) do
-                if tool:IsA("Tool") then
-                    local itemType = tool:GetAttribute("ItemType")
-                    local Handle = tool:FindFirstChild("Handle")
-                    if Handle then
-                        if itemType == "Knife" and equippedKnife then
-                            local kd = getWeaponData(equippedKnife)
-                            if kd then applyWeaponMesh(Handle, kd) end
-                        elseif itemType == "Gun" and equippedGun then
-                            local gd = getWeaponData(equippedGun)
-                            if gd then applyWeaponMesh(Handle, gd) end
-                        end
-                    end
-                end
-            end
-        end)
-    end
-end)
-
-local weaponNames = {"Default Knife", "Default Gun"}
-if data then
-    for name, _ in pairs(data) do table.insert(weaponNames, name) end
-end
-
-skinsSec:CreateDropdown("Select Weapon Skin", weaponNames, weaponNames[1], function(selected)
-    pcall(function()
-        local ProfileData = require(game.ReplicatedStorage.Modules.ProfileData)
-        local cleanName = selected:match("^(.-)%s*%[") or selected
-        if cleanName:find("Knife") then
-            ProfileData.Weapons.Equipped.Knife = cleanName
-        elseif cleanName:find("Gun") then
-            ProfileData.Weapons.Equipped.Gun = cleanName
-        else
-            ProfileData.Weapons.Equipped.Knife = cleanName
-        end
-    end)
-end)
-
--- =====================================================================
--- 4. AUTO FARM TAB
+-- 3. AUTO FARM TAB
 -- =====================================================================
 
 local farmSec = farmTab:CreateSection("Candy/Coin Farm")
@@ -1278,7 +1125,7 @@ farmSec:CreateToggle("Auto Farm Coins", false, function(state) FarmSettings.Enab
 farmSec:CreateSlider("Tween Speed", 10, 100, 25, function(val) FarmSettings.Speed = val end)
 
 -- =====================================================================
--- 5. COMBAT TAB
+-- 4. COMBAT TAB
 -- =====================================================================
 
 local combatSec = combatTab:CreateSection("Combat & Status")
@@ -1288,13 +1135,6 @@ combatSec:CreateToggle("Auto Shot (Вкл/Выкл [F])", true, function(state)
     autoShotEnabled = state
 end)
 
-local predPart = Instance.new("Part")
-predPart.Anchored     = true
-predPart.CanCollide   = false
-predPart.Transparency = 1
-predPart.Size         = Vector3.new(0.1, 0.1, 0.1)
-predPart.Parent       = workspace
-
 UserInputService.InputBegan:Connect(function(inp, gpe)
     if gpe then return end
     if inp.KeyCode == Enum.KeyCode.F then
@@ -1302,6 +1142,42 @@ UserInputService.InputBegan:Connect(function(inp, gpe)
         print("AutoShot [F]:", autoShotEnabled)
     end
 end)
+
+-- == Auto Throw ==
+local autoThrowEnabled = false
+local lastThrow        = 0
+local THROW_COOLDOWN   = 1.2
+
+local function equipKnife()
+    local char = LocalPlayer.Character
+    if not char then return false end
+    local knife = LocalPlayer.Backpack:FindFirstChild("Knife") or char:FindFirstChild("Knife")
+    if not knife then return false end
+    if knife.Parent ~= char then
+        char.Humanoid:EquipTool(knife)
+        task.wait(0)
+    end
+    return true
+end
+
+combatSec:CreateToggle("Auto Throw [T]", false, function(state)
+    autoThrowEnabled = state
+end)
+
+UserInputService.InputBegan:Connect(function(inp, gpe)
+    if gpe then return end
+    if inp.KeyCode == Enum.KeyCode.T then
+        autoThrowEnabled = not autoThrowEnabled
+        print("AutoThrow [T]:", autoThrowEnabled)
+    end
+end)
+
+local predPart = Instance.new("Part")
+predPart.Anchored     = true
+predPart.CanCollide   = false
+predPart.Transparency = 1
+predPart.Size         = Vector3.new(0.1, 0.1, 0.1)
+predPart.Parent       = workspace
 
 local function findTarget(myHRP)
     local myChar  = LocalPlayer.Character
@@ -1352,7 +1228,7 @@ local function findTarget(myHRP)
 end
 
 RunService.RenderStepped:Connect(function()
-    if not autoShotEnabled then return end
+    if not autoShotEnabled and not autoThrowEnabled then return end
     local myChar = LocalPlayer.Character
     local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
     if not myHRP then return end
@@ -1395,34 +1271,53 @@ local lastShot = 0
 local FIRE_RATE = 0.18
 
 RunService.Heartbeat:Connect(function()
-    if not autoShotEnabled then return end
-    local myChar = LocalPlayer.Character
-    local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
-    if not myHRP then return end
-
     local t = tick()
-    if t - lastShot < FIRE_RATE then return end
 
-    equipGun()
+    -- Auto Shot
+    if autoShotEnabled then
+        local myChar = LocalPlayer.Character
+        local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        if myHRP and (t - lastShot >= FIRE_RATE) then
+            equipGun()
+            local gun = myChar:FindFirstChild("Gun")
+            if gun then
+                local shootRemote = gun:FindFirstChild("Shoot")
+                if shootRemote then
+                    local targetPos = predPart.CFrame.Position
+                    local myPos     = myHRP.Position + Vector3.new(0, 1, 0)
+                    pcall(function()
+                        shootRemote:FireServer(CFrame.new(myPos, targetPos), CFrame.new(targetPos))
+                    end)
+                    lastShot = t
+                end
+            end
+        end
+    end
 
-    local gun = myChar:FindFirstChild("Gun")
-    if not gun then return end
-    local shootRemote = gun:FindFirstChild("Shoot")
-    if not shootRemote then return end
-
-    local targetPos = predPart.CFrame.Position
-    local myPos     = myHRP.Position + Vector3.new(0, 1, 0)
-
-    pcall(function()
-        shootRemote:FireServer(CFrame.new(myPos, targetPos), CFrame.new(targetPos))
-    end)
-    lastShot = t
+    -- Auto Throw
+    if autoThrowEnabled and (t - lastThrow >= THROW_COOLDOWN) then
+        local myChar = LocalPlayer.Character
+        local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        if myHRP and equipKnife() then
+            local knife = myChar:FindFirstChild("Knife")
+            if knife then
+                local throwRemote = knife:FindFirstChild("Throw") or knife:FindFirstChild("ThrowKnife")
+                if throwRemote then
+                    local targetPos = predPart.CFrame.Position
+                    local myPos     = myHRP.Position + Vector3.new(0, 1.5, 0)
+                    pcall(function()
+                        throwRemote:FireServer(CFrame.new(myPos, targetPos))
+                    end)
+                    lastThrow = t
+                end
+            end
+        end
+    end
 end)
 
 -- ─── Kill All + Auto Grab Gun ─────────────────────────────────────────────────
 local killGrabSec = combatTab:CreateSection("Kill & Grab")
 
--- == Kill All ==
 local killAllEnabled = false
 
 local function getKnifeHandle()
@@ -1438,17 +1333,31 @@ local function getKnifeHandle()
 end
 
 local function killAll()
+    local char = LocalPlayer.Character
+    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+    local hum  = char and char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum then return end
+
     local handle = getKnifeHandle()
     if not handle then print("[KillAll] нет ножа или Handle") return end
+
+    local originalCF = hrp.CFrame
     local killed = 0
+
     for _, p in Players:GetPlayers() do
         if p == LocalPlayer then continue end
         local pChar = p.Character
         if not pChar then continue end
-        local hum = pChar:FindFirstChildOfClass("Humanoid")
-        if not hum or hum.Health <= 0 then continue end
+        local victimHum = pChar:FindFirstChildOfClass("Humanoid")
+        if not victimHum or victimHum.Health <= 0 then continue end
+        local victimHRP = pChar:FindFirstChild("HumanoidRootPart")
+        if not victimHRP then continue end
+
+        hrp.CFrame = victimHRP.CFrame  -- телепорт к жертве — проходит серверный distance-check
+        task.wait()
+
         for _, part in ipairs({
-            pChar:FindFirstChild("HumanoidRootPart"),
+            victimHRP,
             pChar:FindFirstChild("UpperTorso") or pChar:FindFirstChild("Torso"),
             pChar:FindFirstChild("Head"),
         }) do
@@ -1459,6 +1368,8 @@ local function killAll()
         end
         killed += 1
     end
+
+    hrp.CFrame = originalCF
     print(string.format("[KillAll] %d игроков", killed))
 end
 
@@ -1475,7 +1386,7 @@ end)
 
 -- == Auto Grab Gun ==
 local autoGrab = true
-local autoGrabToggle  -- held so G-key can sync the visual
+local autoGrabToggle
 
 autoGrabToggle = killGrabSec:CreateToggle("Auto Grab Gun [G]", true, function(state)
     autoGrab = state
@@ -1485,7 +1396,7 @@ UserInputService.InputBegan:Connect(function(inp, gpe)
     if gpe then return end
     if inp.KeyCode == Enum.KeyCode.G then
         autoGrab = not autoGrab
-        autoGrabToggle:Set(autoGrab)  -- Set(_, v): _ = self via colon, v = autoGrab
+        autoGrabToggle:Set(nil, autoGrab)
         print("AutoGrab:", autoGrab)
     end
 end)
@@ -1560,7 +1471,7 @@ Players.PlayerAdded:Connect(function(p)
 end)
 
 -- =====================================================================
--- 6. TROLL TAB
+-- 5. TROLL TAB
 -- =====================================================================
 
 local trollSec = trollTab:CreateSection("Troll & Physics")
@@ -1628,8 +1539,8 @@ trollSec:CreateToggle("Запустить Fling (Краш/Раскид)", false,
                 if not hrp or not hum then return end
 
                 local originalCFrame = hrp.CFrame
-
                 local target = nil
+
                 if targetFlingPlayer == "Все" then
                     for _, p in ipairs(Players:GetPlayers()) do
                         if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
@@ -1675,4 +1586,4 @@ trollSec:CreateToggle("Запустить Fling (Краш/Раскид)", false,
     end)
 end)
 
-print("Hoverly loaded: AutoShot + KillAll [H] + AutoGrabGun [G] + Dynamic Fling Selector")
+print("Hoverly loaded: AutoShot[F] + AutoThrow[T] + KillAll[H] + AutoGrabGun[G] + Fling + ESP")
