@@ -110,61 +110,31 @@ local LegitBtn = createButton("Legit", 46)
 local SemiRageBtn = createButton("Semi-Rage", 90)
 local RageBtn = createButton("Rage", 134)
 
--- Функция вывода всплывающего уведомления
-local function showNotify(text)
-    if MainFrame:FindFirstChild("NotifyText") then
-        MainFrame.NotifyText:Destroy()
-    end
-    
-    local notify = Instance.new("TextLabel")
-    notify.Name = "NotifyText"
-    notify.Parent = MainFrame
-    notify.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-    notify.Position = UDim2.new(0, 12, 1, -28)
-    notify.Size = UDim2.new(0, 196, 0, 22)
-    notify.Font = Enum.Font.Gotham
-    notify.Text = text
-    notify.TextColor3 = Color3.fromRGB(255, 140, 140)
-    notify.TextSize = 11
-    notify.BackgroundTransparency = 1
-    
-    local nCorner = Instance.new("UICorner")
-    nCorner.CornerRadius = UDim.new(0, 4)
-    nCorner.Parent = notify
-
-    TweenService:Create(notify, TweenInfo.new(0.2), {BackgroundTransparency = 0.2}):Play()
-    
-    task.delay(1.5, function()
-        if notify then
-            TweenService:Create(notify, TweenInfo.new(0.3), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
-            task.wait(0.3)
-            notify:Destroy()
-        end
-    end)
-end
-
 -- Логика кнопок
 local REPO_URL = "https://raw.githubusercontent.com/BNDPA/Hoverly-Script/refs/heads/main/"
 
 LegitBtn.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy() -- Закрываем меню при нажатии[span_2](start_span)[span_2](end_span)
+    ScreenGui:Destroy()
     pcall(function()
         loadstring(game:HttpGet(REPO_URL .. "mm2_legit.lua"))()
     end)
 end)
 
 SemiRageBtn.MouseButton1Click:Connect(function()
-    showNotify("В разработке")
+    ScreenGui:Destroy()
+    pcall(function()
+        loadstring(game:HttpGet(REPO_URL .. "mm2_semi-rage.lua"))()
+    end)
 end)
 
 RageBtn.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy() -- Закрываем меню при нажатии[span_3](start_span)[span_3](end_span)
+    ScreenGui:Destroy()
     pcall(function()
         loadstring(game:HttpGet(REPO_URL .. "mm2_rage.lua"))()
     end)
 end)
 
--- Перетаскивание меню (для ПК и телефонов)
+-- Логика перетаскивания меню (ПК и телефоны)
 local dragging, dragInput, dragStart, startPos
 
 TopBar.InputBegan:Connect(function(input)
@@ -181,13 +151,13 @@ TopBar.InputBegan:Connect(function(input)
     end
 end)
 
-UserInputService.InputChanged:Connect(function(input)
+TopBar.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
         dragInput = input
     end
 end)
 
-UserInputService.InputChanged:Connect(function()
+UserInputService.InputChanged:Connect(function(input)
     if dragging and dragInput then
         local delta = dragInput.Position - dragStart
         MainFrame.Position = UDim2.new(
