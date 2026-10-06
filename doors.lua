@@ -83,6 +83,7 @@ local espClosetsEnabled = false
 local entityNotifierEnabled = false
 
 local monsterActive = false
+local sallyActive = false
 
 local espFolder = Instance.new("Folder")
 espFolder.Name = "HoverlyDOORS_ESP"
@@ -124,7 +125,8 @@ MainSection:CreateToggle("Auto Check Screech", false, function(state)
 end)
 
 local monitoredEntities = {
-    ["RushMoving"] = "Rush is coming! HIDE NOW!",
+    ["Rush"] = "Rush is coming! HIDE NOW!",
+    ["Sally"] = "Sally is active!",
     ["AmbushMoving"] = "Ambush is coming! HIDE & GET READY TO CLICK!",
     ["Eyes"] = "Eyes spawned! Don't look at them!",
     ["Halt"] = "Halt room! Turn around or move back!",
@@ -143,6 +145,10 @@ local monitoredEntities = {
 
 Workspace.ChildAdded:Connect(function(child)
     local name = child.Name
+    if name == "Sally" or name == "SallyActive" then
+        sallyActive = true
+    end
+
     if monitoredEntities[name] or name:find("A-") or name:find("Rush") or name:find("Ambush") then
         if name ~= "Eyes" and name ~= "Screech" and name ~= "Snare" and name ~= "Timothy" and name ~= "A-90" and name ~= "SeekMoving" then
             monsterActive = true
@@ -156,9 +162,13 @@ end)
 
 Workspace.ChildRemoved:Connect(function(child)
     local name = child.Name
+    if name == "Sally" or name == "SallyActive" then
+        sallyActive = false
+    end
+
     if monitoredEntities[name] or name:find("A-") or name:find("Rush") or name:find("Ambush") then
         local dangerFound = false
-        for _, entName in pairs({"RushMoving", "AmbushMoving", "A-60", "A-120", "Halt", "Figure"}) do
+        for _, entName in pairs({"Rush", "AmbushMoving", "A-60", "A-120", "Halt", "Figure"}) do
             if Workspace:FindFirstChild(entName) then
                 dangerFound = true
                 break
@@ -241,7 +251,7 @@ RunService.Stepped:Connect(function()
 end)
 
 -- =================================================================
--- 3. AUTO INTERACT (Игнор автоматов, картин, сидений и Сика)
+-- 3. AUTO INTERACT
 -- =================================================================
 MainSection:CreateToggle("Auto Open Doors, Keys, Levers & Lockers", false, function(state)
     autoInteractEnabled = state
@@ -256,25 +266,34 @@ MainSection:CreateToggle("Auto Open Doors, Keys, Levers & Lockers", false, funct
                         if obj:IsA("ProximityPrompt") then
                             local actionText = obj.ActionText:lower()
                             local parent = obj.Parent
-                            local parentName = parent and parent.Name:lower() or ""
+                            local parentName = parent and parent.Name or ""
+                            local parentNameLower = parentName:lower()
                             local grandparent = parent and parent.Parent
                             local grandparentName = grandparent and grandparent.Name:lower() or ""
                             
                             local isIgnored = false
 
-                            if parentName:find("vending") or parentName:find("shop") or parentName:find("jeff") or 
-                               parentName:find("painting") or parentName:find("portrait") or parentName:find("canvas") or
-                               parentName:find("seek") or grandparentName:find("seek") or actionText:find("seek") or
+                            -- Игнорируем объекты, начинающиеся с Binder, а также PrincpalChair и старые исключения
+                            if parentName:sub(1, 6) == "Binder" or parentName == "PrincpalChair" or 
+                               parentName == "Desk_bell" or parentName == "Regal_chair" or parentName == "Vendor_snakelightVendingMachine" or
+                               parentName == "ArchivesTerminal" or parentName == "ArchivesTrashcan" or parentName == "ArchivesLargePrinter" then
+                                isIgnored = true
+                            end
+
+                            if parentNameLower:find("vending") or parentNameLower:find("shop") or parentNameLower:find("jeff") or 
+                               parentNameLower:find("painting") or parentNameLower:find("portrait") or parentNameLower:find("canvas") or
+                               parentNameLower:find("seek") or grandparentName:find("seek") or actionText:find("seek") or
                                grandparentName:find("vending") or grandparentName:find("shop") or actionText:find("buy") then
                                 isIgnored = true
                             end
 
                             local isHideOrSit = actionText:find("hide") or actionText:find("enter") or actionText:find("sit") or
-                                                 parentName:find("wardrobe") or parentName:find("closet") or parentName:find("bed") or 
-                                                 parentName:find("locker") or parentName:find("chair") or parentName:find("seat") or parentName:find("bench")
+                                                 parentNameLower:find("wardrobe") or parentNameLower:find("closet") or parentNameLower:find("bed") or 
+                                                 parentNameLower:find("locker") or parentNameLower:find("chair") or parentNameLower:find("seat") or parentNameLower:find("bench")
 
                             if isHideOrSit then
-                                if not monsterActive then
+                                -- Если активна Салли или нет опасных монстров (кроме глаз), то прятаться/садиться не нужно
+                                if sallyActive or (not monsterActive) then
                                     isIgnored = true
                                 end
                             end
@@ -390,31 +409,36 @@ task.spawn(function()
 
                     if espItemsEnabled then
                         for _, item in pairs(room:GetDescendants()) do
-                            local itemName = item.Name:lower()
-                            local labelText = ""
-                            local color = Color3.fromRGB(255, 230, 0)
+                            local itemName = item.Name
+                            local itemNameLower = itemName:lower()
+                            
+                            -- Пропускаем PaperPlanePickup и всё, что начинается с Binder
+                            if itemName ~= "PaperPlanePickup" and itemName:sub(1, 6) ~= "Binder" then
+                                local labelText = ""
+                                local color = Color3.fromRGB(255, 230, 0)
 
-                            if itemName == "livehintbook" then
-                                labelText = "📖 book"
-                                color = Color3.fromRGB(0, 200, 255)
-                            elseif itemName:find("breaker") or itemName:find("switch") or itemName:find("lever") then
-                                labelText = "⚙️ mechanism"
-                                color = Color3.fromRGB(255, 140, 0)
-                            elseif itemName == "key" or itemName == "keycard" or itemName == "padlock" then
-                                labelText = "🔑 key"
-                                color = Color3.fromRGB(255, 230, 0)
-                            end
+                                if itemNameLower == "livehintbook" then
+                                    labelText = "📖 book"
+                                    color = Color3.fromRGB(0, 200, 255)
+                                elseif itemNameLower:find("breaker") or itemNameLower:find("switch") or itemNameLower:find("lever") then
+                                    labelText = "⚙️ mechanism"
+                                    color = Color3.fromRGB(255, 140, 0)
+                                elseif itemNameLower == "key" or itemNameLower == "keycard" or itemNameLower == "padlock" then
+                                    labelText = "🔑 key"
+                                    color = Color3.fromRGB(255, 230, 0)
+                                end
 
-                            if labelText ~= "" then
-                                local targetPart = item:IsA("Model") and (item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")) or item
-                                if targetPart and targetPart:IsA("BasePart") then
-                                    local hl = Instance.new("Highlight")
-                                    hl.Adornee = item
-                                    hl.FillColor = color
-                                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                                    hl.FillTransparency = 0.4
-                                    hl.Parent = espFolder
-                                    createBillboard(targetPart, labelText, color)
+                                if labelText ~= "" then
+                                    local targetPart = item:IsA("Model") and (item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")) or item
+                                    if targetPart and targetPart:IsA("BasePart") then
+                                        local hl = Instance.new("Highlight")
+                                        hl.Adornee = item
+                                        hl.FillColor = color
+                                        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                                        hl.FillTransparency = 0.4
+                                        hl.Parent = espFolder
+                                        createBillboard(targetPart, labelText, color)
+                                    end
                                 end
                             end
                         end
@@ -422,17 +446,22 @@ task.spawn(function()
 
                     if espClosetsEnabled then
                         for _, obj in pairs(room:GetDescendants()) do
-                            local name = obj.Name:lower()
-                            if name:find("wardrobe") or name:find("closet") or name:find("bed") or name:find("locker") or name:find("hide") then
-                                local targetPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
-                                if targetPart and targetPart:IsA("BasePart") then
-                                    local hl = Instance.new("Highlight")
-                                    hl.Adornee = obj
-                                    hl.FillColor = Color3.fromRGB(160, 32, 240)
-                                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                                    hl.FillTransparency = 0.4
-                                    hl.Parent = espFolder
-                                    createBillboard(targetPart, "🗄️ hiding spot", Color3.fromRGB(160, 32, 240))
+                            local name = obj.Name
+                            local nameLower = name:lower()
+                            
+                            -- Пропускаем шкафы/укрытия, начинающиеся с Binder
+                            if name:sub(1, 6) ~= "Binder" then
+                                if nameLower:find("wardrobe") or nameLower:find("closet") or nameLower:find("bed") or nameLower:find("locker") or nameLower:find("hide") then
+                                    local targetPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
+                                    if targetPart and targetPart:IsA("BasePart") then
+                                        local hl = Instance.new("Highlight")
+                                        hl.Adornee = obj
+                                        hl.FillColor = Color3.fromRGB(160, 32, 240)
+                                        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                                        hl.FillTransparency = 0.4
+                                        hl.Parent = espFolder
+                                        createBillboard(targetPart, "🗄️ hiding spot", Color3.fromRGB(160, 32, 240))
+                                    end
                                 end
                             end
                         end
@@ -461,31 +490,35 @@ task.spawn(function()
             if espEntitiesEnabled then
                 for _, entity in pairs(Workspace:GetChildren()) do
                     local entityName = entity.Name
-                    local nameLower = entityName:lower()
                     
-                    local isMonster = monitoredEntities[entityName] or 
-                                      nameLower:find("rush") or 
-                                      nameLower:find("ambush") or 
-                                      nameLower:find("eyes") or 
-                                      nameLower:find("halt") or 
-                                      nameLower:find("figure") or 
-                                      nameLower:find("seek") or 
-                                      nameLower:find("screech") or 
-                                      nameLower:find("snare") or 
-                                      nameLower:find("dupe") or 
-                                      nameLower:find("glitch") or 
-                                      entityName:find("A-")
+                    -- Сущности, начинающиеся с Binder, тоже не трогаем в ESP
+                    if entityName:sub(1, 6) ~= "Binder" then
+                        local nameLower = entityName:lower()
+                        
+                        local isMonster = monitoredEntities[entityName] or 
+                                          nameLower:find("rush") or 
+                                          nameLower:find("ambush") or 
+                                          nameLower:find("eyes") or 
+                                          nameLower:find("halt") or 
+                                          nameLower:find("figure") or 
+                                          nameLower:find("seek") or 
+                                          nameLower:find("screech") or 
+                                          nameLower:find("snare") or 
+                                          nameLower:find("dupe") or 
+                                          nameLower:find("glitch") or 
+                                          entityName:find("A-")
 
-                    if isMonster then
-                        local targetPart = entity:IsA("Model") and (entity.PrimaryPart or entity:FindFirstChildWhichIsA("BasePart")) or entity
-                        if targetPart and targetPart:IsA("BasePart") then
-                            local hl = Instance.new("Highlight")
-                            hl.Adornee = entity
-                            hl.FillColor = Color3.fromRGB(255, 0, 0)
-                            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                            hl.FillTransparency = 0.3
-                            hl.Parent = espFolder
-                            createBillboard(targetPart, "⚠️ " .. entityName, Color3.fromRGB(255, 0, 0))
+                        if isMonster then
+                            local targetPart = entity:IsA("Model") and (entity.PrimaryPart or entity:FindFirstChildWhichIsA("BasePart")) or entity
+                            if targetPart and targetPart:IsA("BasePart") then
+                                local hl = Instance.new("Highlight")
+                                hl.Adornee = entity
+                                hl.FillColor = Color3.fromRGB(255, 0, 0)
+                                hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                                hl.FillTransparency = 0.3
+                                hl.Parent = espFolder
+                                createBillboard(targetPart, "⚠️ " .. entityName, Color3.fromRGB(255, 0, 0))
+                            end
                         end
                     end
                 end
