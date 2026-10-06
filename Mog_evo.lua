@@ -1,5 +1,5 @@
 -- Загрузка библиотеки VantaUI
-local VantaUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/mopscode/VantaUI/main/VantaUI.lua"))()
+local VantaUI = loadstring(game:HttpGet("https://github.com/BNDPA/NodiumUI/raw/refs/heads/main/Latest.lua"))()
 
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local TweenService = game:GetService("TweenService")
